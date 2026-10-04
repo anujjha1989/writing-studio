@@ -285,9 +285,9 @@ del{background:color-mix(in srgb,var(--bad),transparent 80%);text-decoration-col
 .tree{margin-left:8px;border-left:2px solid var(--rule);padding-left:14px}
 
 /* ---------- author styles ---------- */
-.authors{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0 34px}
-.author-row{display:flex;align-items:baseline;gap:10px;padding:10px 2px;border-bottom:1px solid var(--rule);text-decoration:none;color:inherit}.author-row:hover{color:var(--accent)}
-.author-row b{font:500 1.05rem var(--serif);flex:1}
+.authors{columns:3 250px;column-gap:38px}
+.author-row{break-inside:avoid;display:flex;align-items:baseline;gap:10px;padding:10px 2px;border-bottom:1px solid var(--rule);text-decoration:none;color:inherit}.author-row:hover{color:var(--accent)}
+.author-row[hidden]{display:none}.author-row[hidden]{display:none}.author-row b{font:500 1.05rem var(--serif);flex:1}
 .stat-table{width:100%;border-collapse:collapse;font-size:.92rem}.stat-table th,.stat-table td{text-align:left;padding:9px 10px 9px 0;border-bottom:1px solid var(--rule);vertical-align:middle;font-weight:400}
 .stat-table thead th{font-size:.78rem;font-weight:600;color:var(--ink2)}.stat-table td.num{font:500 1.05rem var(--serif);white-space:nowrap}
 .gauge{position:relative;height:6px;min-width:90px;background:var(--sunk);border-radius:99px}.gauge i{position:absolute;top:-4px;width:3px;height:14px;border-radius:2px;background:var(--accent)}.gauge b{position:absolute;top:-3px;width:10px;height:10px;margin:1px 0 0 -4px;border-radius:50%;border:2px solid var(--warn);background:var(--page)}

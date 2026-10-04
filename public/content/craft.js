@@ -16,6 +16,18 @@ export const CRAFT_GUIDES = [
     'Every scene needs a goal, a conflict and an outcome that changes the situation (often for the worse). Sequels (reaction, dilemma, decision) give characters room to feel and choose.',
     'Enter late, leave early.',
   ], test: ['What changes between the first and last line of the scene?', 'Is it in the right scene-summary mix for the effect?'] },
+  { id: 'plot-theme-novel', title: 'Plot and theme in a novel', body: [
+    'A novel has room for a main plot, subplots and a change that takes time. Start from a person who wants something concrete and an opposing force with reasons of its own. The plot is the series of attempts and reversals; each should cost more than the last and close off a way back.',
+    'Give the book a spine question the reader can state in a sentence (will she keep the farm, who killed him, can he forgive his father). Every major scene should move that question. Subplots earn their place by echoing or contradicting the main line: one marriage forms as another fails.',
+    'Theme is what the plot proves. Do not start by stating it. Put two values in conflict (loyalty and honesty, safety and freedom), give each a character who believes in it, and let the ending show the cost of choosing. Then go back and plant an object or image that can change meaning as the book goes on.',
+    'Writers on your shelf do this differently. Planners such as Sanderson, Follett and Grisham outline from the ending. Explorers such as King, Murakami and Lee Child start with a situation and follow it. Either way the revision is the same: check each scene changes something and each promise is paid.',
+  ], test: ['Can I state the spine question in one sentence?', 'Does each subplot comment on the main plot?', 'Which two values are in conflict, and who stands for each?', 'What image or object changes meaning by the end?'] },
+  { id: 'plot-theme-story', title: 'Plot and theme in a short story', body: [
+    'A short story has room for one thing: one character, one situation, one change. Begin as close to the turn as you can. Chekhov cut the beginning and the end; Carver stopped on an image; Munro folded decades into a single evening by moving through time instead of adding events.',
+    'There are two reliable shapes. The turn story (Maupassant, O. Henry, Dahl, Archer) sets up an expectation and reverses it with a fact planted early. The recognition story (Joyce, Chekhov, Munro, Trevor) ends when a character, or only the reader, sees the situation differently. Decide which you are writing before you draft the ending.',
+    'Theme in a story is carried by one object or act and is never explained. O’Connor takes away the thing a proud character is attached to. Hemingway leaves out the subject the couple cannot discuss. Lahiri lets a household ritual change its meaning. Pick the single detail that will hold it and cut any sentence that tells the reader what to think.',
+    'Compression is the craft: one setting if possible, a short span of time, two or three people, and a last line that changes the first.',
+  ], test: ['What is the one change?', 'Is this a turn story or a recognition story?', 'Which single object or act carries the theme?', 'Can I start a page later and stop a paragraph sooner?'] },
   { id: 'pov', title: 'Point of view & tense', body: [
     'First person gives intimacy and voice; limited third gives intimacy with flexibility; omniscient gives breadth and a storyteller\'s voice; second person is rare and demanding.',
     'Choose by asking whose knowledge you need and whose blind spots create tension.',

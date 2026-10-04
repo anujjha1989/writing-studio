@@ -4,6 +4,7 @@ import { AUTHORS_1 } from '../content/authors1.js';
 import { AUTHORS_2 } from '../content/authors2.js';
 import { AUTHORS_MORE } from '../content/authors-more.js';
 import { METRICS, METRIC_KEYS } from '../content/metrics.js';
+import { PLOTCRAFT } from '../content/plotcraft.js';
 
 // Which library collection each full guide was measured from.
 const LIB_OF = { naipaul: 'V.S. Naipaul', rushdie: 'Salman Rushdie', lahiri: 'Jhumpa Lahiri', coetzee: 'J. M. Coetzee', king: 'Stephen King', martin: 'A Song of Ice and Fire', sanderson: 'Mistborn', herbert: 'Dune', tolkien: 'JRR Tolkein', barnes: 'Julian Barnes', andersen: 'Hans Christian Andersen', murakami: 'Haruki Murakami', steel: 'Danielle Steel', baldacci: 'David Baldacci', koontz: 'Dean Koontz', lessing: 'Doris Lessing', angelou: 'Maya Angelou', crichton: 'Michael Crichton', carey: 'Peter Carey', durant: 'Will Durant', dahl: 'Roald Dahl' };
@@ -14,7 +15,7 @@ const surname = (n) => n.replace(/\s*\(.*\)$/, '').split(' ').pop();
 const full = [...AUTHORS_1, ...AUTHORS_2].map((a) => ({ ...a, lib: LIB_OF[a.id], full: true }));
 const taken = new Set([...full.map((a) => a.lib), ...AUTHORS_MORE.map((a) => a.lib)].filter(Boolean));
 const measuredOnly = Object.keys(METRICS).filter((k) => !taken.has(k)).map((k) => ({ id: slug(k), name: k, lib: k }));
-export const AUTHORS = [...full, ...AUTHORS_MORE, ...measuredOnly].sort((a, b) => surname(a.name).localeCompare(surname(b.name)));
+export const AUTHORS = [...full, ...AUTHORS_MORE, ...measuredOnly].map((a) => ({ ...a, plotcraft: PLOTCRAFT[a.name]?.[0], themecraft: PLOTCRAFT[a.name]?.[1] })).sort((a, b) => surname(a.name).localeCompare(surname(b.name)));
 
 // ---------- numbers ----------
 const idx = Object.fromEntries(METRIC_KEYS.map((k, i) => [k, i]));
@@ -74,7 +75,7 @@ let tab = 'guides', q = '', sortKey = 'sent_mean', sortDir = -1;
 export async function render([id]) {
   if (id) return detail(AUTHORS.find((a) => a.id === id));
   const draft = draftMetrics();
-  const root = h('div', { class: 'stack-lg' }, pageHead('Author styles', `${AUTHORS.length} writers from your Complete Works shelf. Each page pairs a plain-words guide to how they write with numbers measured from your own copies of their books.`),
+  const root = h('div', { class: 'stack-lg' }, pageHead('Author styles', `${AUTHORS.length} writers from your Complete Works shelf. Each page covers how they write, how they build plots and how they work their themes in, with numbers measured from your own copies of their books.`),
     draft ? h('p', { class: 'reading' }, `By the numbers, “${S.project.title}” currently reads closest to `, nearest(zvec((k) => draft[k]), null, 3).flatMap((a, i, arr) => [h('a', { href: '#/styles/' + a.id }, a.name), i < arr.length - 2 ? ', ' : i === arr.length - 2 ? ' and ' : '.'])) : null,
     tabs([['guides', 'Writers'], ['numbers', 'Compare by the numbers']], tab, (t) => { tab = t; rerender(); }));
   root.append(tab === 'guides' ? list() : table(draft));
@@ -100,7 +101,7 @@ function table(draft) {
       h('tbody', {}, data.map(({ a, get }) => h('tr', { style: a.mine ? { background: 'color-mix(in srgb, var(--warn), transparent 85%)' } : {} }, h('th', {}, a.mine ? h('b', {}, a.name) : h('a', { href: '#/styles/' + a.id }, a.name)), colsShown.map(([k]) => h('td', { class: 'num' }, get(k) == null ? '' : get(k).toFixed(k === 'sent_mean' || k === 'ly' || k === 'semi' ? 1 : 0)))))))));
 }
 
-const SECTIONS = [['voice', 'Voice'], ['rhythm', 'Sentence rhythm'], ['structure', 'Structure'], ['pov', 'Point of view'], ['pacing', 'Pacing'], ['world', 'World and setting'], ['dialogue', 'Dialogue'], ['themes', 'Themes']];
+const SECTIONS = [['voice', 'Voice'], ['plotcraft', 'How the plots are built'], ['themecraft', 'How the themes are worked in'], ['rhythm', 'Sentence rhythm'], ['structure', 'Structure'], ['pov', 'Point of view'], ['pacing', 'Pacing'], ['world', 'World and setting'], ['dialogue', 'Dialogue'], ['themes', 'Recurring themes']];
 function detail(a) {
   if (!a) return h('p', {}, 'That writer is not in the library.');
   const draft = draftMetrics();

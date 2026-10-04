@@ -1,57 +1,56 @@
 # Writing Studio
 
-A self-hosted, single-user writing workbench for fiction and non-fiction. Runs on a Raspberry Pi on your local network and is designed for iOS Safari (add it to the Home Screen for a full-screen app). No accounts, no cloud: your work is stored in one SQLite file, with JSON export/import.
+A self-hosted desk for writing a book: plan it, write it, keep it consistent, read it back, and export it. Single user, runs on a Raspberry Pi, used from a phone or a computer. No dependencies beyond Node.
 
-## What's inside
+## What is in it
 
-| Section | What you get |
-|---|---|
-| **Plot library** | 11 structures (Three-Act, Hero's Journey, Save the Cat, Seven-Point, Kishotenketsu, Booker's Seven Basic Plots, Mystery, Romance, Thriller, Fichtean Curve, Freytag) with beat-by-beat guidance, pitfalls, and a fill-in template saved per project. One tap turns a template into storyboard scene cards. Export a filled template as Markdown. |
-| **Characters** | 12 archetypes, 6 arc types (positive, flat, 3 negative, redemption) with step lists, a character sheet builder, interview prompts, and an auto-laid-out SVG relationship map. |
-| **Storyboard** | Scene cards in act/part columns. Drag the ⠿ handle (touch and mouse) to reorder or move across acts. Each card: title, chapter, POV, setting, goal/conflict/outcome, status, target words, threads, notes. |
-| **Plot tracker** | Subplot threads, a thread × scene timeline grid, setups/payoffs checklist, word goal + deadline + words/day needed, per-act progress, 14-day words-per-day chart. |
-| **Author styles** | 22 original style guides (voice, sentence rhythm, structure, POV, pacing, worldbuilding, dialogue, themes, techniques to borrow, imitation pitfalls) plus 3 practice exercises each, with a place to write and tick off your attempts and keep your own notes. |
-| **Non-fiction** | Book proposal outline, argument map (claim, reasons, evidence, objections, rebuttals), chapter templates, source tracker, narrative non-fiction techniques, research habits. |
-| **Craft toolkit** | Guides (show vs tell, dialogue, scene vs summary, POV, pacing, openings/endings, description, revision), interactive revision checklists, prompt generator and prompt list. |
-| **Write** | Distraction-free editor with focus mode, autosave, live word counts. Every draft belongs to a storyboard scene, so word counts feed the tracker. |
-| **Backup** | Export/import everything as JSON (merge or replace). |
+- **Desk**: the open book's cover, progress, today's words against a daily target, a writing-days calendar and your shelf of books.
+- **Storyboard**: scene cards by act. Drag a card by its handle to reorder or move it. Each card holds point of view, setting, goal, conflict, outcome, tension, status and threads.
+- **Write**: a quiet editor. A side panel (a bottom sheet on the phone) shows the scene plan, the story bible, craft and author guides, saved versions, a prose check and feedback from Claude. Focus mode hides everything and keeps the line you are typing mid-screen. Timed sprints log how much you wrote.
+- **Manuscript**: every written scene in reading order as one book, with names linked to the story bible. Export to Word (standard manuscript format), EPUB, Markdown or plain text.
+- **Story bible**: character sheets, places, objects, groups and rules, a relationship map, and a list of the scenes each one appears in.
+- **Tracker**: tension curve, viewpoint strip, who-is-on-stage grid, plot threads by scene, setups and payoffs, and word-count progress.
+- **Plot library, craft toolkit, non-fiction track**: reference material with fill-in templates.
+- **Author styles**: 197 writers from the Complete Works shelf. Each has a written guide (voice, how the plots are built, how the themes are worked in, techniques to borrow, an exercise) plus numbers measured from the EPUBs (sentence length, dialogue share, adverbs and so on), a sortable comparison table, and a note of which writers the open draft is closest to.
 
-## Run locally
+## Run it
 
-Requires **Node 22.13+** (uses the built-in `node:sqlite`; there are no npm dependencies and nothing to compile, so it works unchanged on a Pi).
-
-```sh
-npm start            # http://localhost:3080
-npm test             # API smoke test (CRUD, export/import round-trip)
+```
+npm start          # http://localhost:3080
+npm test           # API smoke test
 ```
 
-Environment: `PORT` (default 3080), `HOST` (default 0.0.0.0), `NS_DATA_DIR` (default `./data`).
+Needs Node 22.13 or newer (it uses the built-in `node:sqlite`).
 
-## Deploy to the Pi (build on the Mac, install on the Pi)
+## Deploy to the Pi
 
-```sh
-PI_HOST=raspberrypi.local PI_USER=pi ./scripts/deploy.sh
+From the Mac, in this folder:
+
+```
+git pull
+./scripts/deploy.sh
 ```
 
-It runs the smoke test, packages `server/`, `public/` and `package.json` into a tarball, copies it over SSH, unpacks it as a timestamped release, flips a `current` symlink, installs and restarts a `writing-studio` systemd service, health-checks it, and prunes old releases (keeps 5). Your data lives in `~/writing-studio/data` and is never touched by deploys. Optional vars: `PI_PORT` (3080), `APP_DIR`, `KEEP_RELEASES`. The Pi needs Node 22.13+ (the script looks at `$NODE_BIN`, `/opt/node22/bin/node`, `/usr/local/bin/node`, then PATH) and passwordless `sudo` for the service install.
+Defaults are `anujjha1989@anujrpi.local`, port 3080. Override with `PI_HOST`, `PI_USER`, `PI_PORT`, `APP_DIR` or `NODE_BIN`. The script tests, packages, copies over SSH (one password prompt), installs a systemd service and checks it came up. Data lives in `~/writing-studio/data` on the Pi and deploys never touch it.
 
-Then open `http://raspberrypi.local:3080` in iOS Safari and use **Share → Add to Home Screen**.
+## Settings worth knowing
 
-Back up with `scp pi@raspberrypi.local:writing-studio/data/writing-studio.db .` or the in-app JSON export.
+- **Feedback from Claude**: paste your own Anthropic API key in Settings. It is stored in `data/secrets.json` on the Pi (mode 600) and is never sent back to the browser. Nothing is sent to Anthropic unless you press "Get notes" on a scene.
+- **Passphrase**: optional. Set one in Settings before exposing the app beyond the home network (for example through Tailscale Funnel). Each device unlocks once for 90 days.
+- **Backups**: the server writes a compressed copy every night after 3 am and keeps the last 30. They go to `/mnt/seagate/WritingStudio/backups` when that drive is mounted, otherwise `data/backups`. Set `WS_BACKUP_DIR` to change it.
+- **Two devices**: each save carries the version it was based on. If a scene's text changed elsewhere in the meantime, the app asks which to keep and stores the other under Versions. Open tabs pick up changes from other devices within a minute.
+- **Offline**: if the Pi is unreachable while you write, edits are kept on the device and sent when it returns. Opening the app with no connection at all needs a secure (https) address, because browsers only allow service workers there.
 
-## Choices I made (you asked me not to ask)
+## Choices made
 
-- **Stack:** zero-dependency Node server + vanilla ES-module front end. No build tooling or native modules, so "build on the Mac" is just test + package, and there is no ARM cross-compile risk. SQLite via Node's built-in driver (needs Node ≥ 22.13; it prints no warnings because the service silences the experimental notice).
-- **Storage:** one `records` table (`id, type, project, data JSON, updated_at`) so export/import is trivial and the schema never needs migrations. Projects are scoped records; author practice work and notes are global (not tied to a project).
-- **Multiple projects:** supported (a novel and a non-fiction book can coexist), although you asked for single-user, with no accounts.
-- **No HTTPS / auth:** it's LAN-only by design. Don't expose the port to the internet. Because iOS treats HTTP as an insecure context, I avoid APIs like `crypto.randomUUID`.
-- **Drag and drop:** custom pointer-event dragging on a handle, because the HTML5 drag API doesn't work on iOS touch. The handle uses `touch-action: none`, so the rest of the card scrolls normally.
-- **Author guides:** all analysis is original prose about technique. No passages from any book are reproduced. I have **no access to your Home Books app or its Complete Works section**, so the guides are my own characterisation from general knowledge, not drawn from your library. Each author page has a Notes box so you can add your own observations. Will Durant is treated as a narrative-history/non-fiction stylist. Check any factual claim against the books before relying on it.
-- **Plot "act" placement:** beats are assigned to acts by their approximate percentage through the story, so you can edit them freely afterwards. Acts/parts are renamable per project (Settings on Home).
-- **Home-screen icon:** a generated PNG and SVG; replace `public/icon-180.png` if you want something nicer.
-- **Offline:** no service worker (the Pi is on your LAN); saving shows "Saving…/Saved" in the header and flushes on page hide.
+- Zero npm dependencies. DOCX and EPUB are written with a small built-in zip writer.
+- Typefaces (Literata, Instrument Sans) are shipped in `public/fonts`, so the app does not need the internet.
+- Italics in drafts are written `*like this*` and become real italics in the manuscript and exports.
+- Chapters in the manuscript follow the Chapter field on scene cards. With no chapter numbers set, each scene is its own chapter.
+- Author guides are original descriptions of technique. No text from any book is stored; the measurements are numbers only. Emily Dickinson and Thomas Hardy could not be measured from the library copies. Translated writers' numbers reflect their translators.
+- The prose check runs in the browser. It uses simple rules, so treat its marks as prompts to look, not as errors.
 
-## Data model
+## Not tested
 
-`GET /api/records?type=&project=` · `PUT /api/records/:id` · `DELETE /api/records/:id` · `GET /api/export` · `POST /api/import?mode=merge|replace`.
-Record types: `project, scene, thread, setup, char, rel, plotnote, proposal, arg, source, check, wordlog, practice, authnote`.
+- Real iOS Safari. Everything was tested in Chromium at phone and desktop sizes, including drag and drop with pointer events.
+- Feedback from Claude with a real key. The request path is tested up to the point of calling Anthropic.

@@ -69,7 +69,7 @@ function editor(s, scenes, sprintMin) {
   const nav = (d) => { const t = scenes[idx + d]; if (t) go('write/' + t.id); };
 
   // ----- sprint -----
-  const sprintEl = h('button', { class: 'btn sm', type: 'button', onClick: () => sprintMenu() });
+  const sprintEl = h('button', { class: 'btn sm', type: 'button', title: 'Timed sprint', onClick: () => sprintMenu() });
   function paintSprint() {
     if (!sprint || sprint.sceneId !== s.id) { sprintEl.replaceChildren(icon('timer', 16), h('span', { class: 'lbl' }, 'Sprint')); sprintEl.classList.remove('live'); return; }
     const left = Math.max(0, sprint.end - Date.now());
@@ -154,7 +154,7 @@ function guidePanel() {
   const draw = () => {
     const [kind, id] = pick.split(':');
     if (kind === 'craft') { const g = CRAFT_GUIDES.find((x) => x.id === id) || CRAFT_GUIDES[0]; body.replaceChildren(h('div', { class: 'prose' }, g.body.map((p) => h('p', {}, p))), g.test.length ? h('div', {}, h('h3', {}, 'Ask of this scene'), h('ul', {}, g.test.map((t) => h('li', {}, t)))) : ''); }
-    else { const a = AUTHORS.find((x) => x.id === id) || AUTHORS[0]; body.replaceChildren(...[['Voice', a.voice], ['Sentence rhythm', a.rhythm], ['Pacing', a.pacing], ['Dialogue', a.dialogue]].filter((x) => x[1]).map(([k, v]) => h('div', {}, h('h3', {}, k), h('p', { class: 'prose' }, v))), a.borrow?.length ? h('div', {}, h('h3', {}, 'Techniques to borrow'), h('ul', {}, a.borrow.map((x) => h('li', {}, x)))) : '', h('a', { class: 'small', href: '#/styles/' + a.id }, 'Open the full guide')); }
+    else { const a = AUTHORS.find((x) => x.id === id) || AUTHORS[0]; body.replaceChildren(...[['Voice', a.voice], ['How the plots are built', a.plotcraft], ['How the themes are worked in', a.themecraft], ['Sentence rhythm', a.rhythm], ['Pacing', a.pacing], ['Dialogue', a.dialogue]].filter((x) => x[1]).map(([k, v]) => h('div', {}, h('h3', {}, k), h('p', { class: 'prose' }, v))), a.borrow?.length ? h('div', {}, h('h3', {}, 'Techniques to borrow'), h('ul', {}, a.borrow.map((x) => h('li', {}, x)))) : '', h('a', { class: 'small', href: '#/styles/' + a.id }, 'Open the full guide')); }
   };
   draw();
   return h('div', { class: 'stack' }, sel, body);
@@ -231,7 +231,7 @@ function notesPanel(s) {
     ['goal', 'Does the scene do its job?', () => `Judge this scene against its plan.\nGoal: ${s.goal || '(not set)'}\nConflict: ${s.conflict || '(not set)'}\nOutcome: ${s.outcome || '(not set)'}\nDoes the draft deliver the goal, conflict and outcome? Where does it drift or stall?`],
     ['show', 'Showing and telling', () => 'Find places where this scene tells the reader an emotion or a judgement that should be dramatised, and places where it dramatises something that could simply be told. Point to the lines.'],
     ['voice', 'Character voice', () => { const c = chars.find((x) => x.id === pickChar.value); return `Check the voice and behaviour of ${c?.name || 'the viewpoint character'} against this character sheet, and flag lines that feel out of character.\nCharacter sheet:\n${c ? Object.entries(c.vals || {}).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n') : '(none)'}`; }],
-    ['author', 'Pacing, through an author’s eyes', () => { const a = AUTHORS.find((x) => x.id === pickAuthor.value) || AUTHORS[0]; return `Using this description of how ${a.name} handles pacing and scenes, say how that approach would treat this scene's pacing and what the writer could borrow. Do not imitate or reproduce ${a.name}'s prose.\nPacing: ${a.pacing}\nSentence rhythm: ${a.rhythm}\nStructure: ${a.structure}`; }],
+    ['author', 'Pacing, through an author’s eyes', () => { const a = AUTHORS.find((x) => x.id === pickAuthor.value) || AUTHORS[0]; return `Using this description of how ${a.name} handles pacing and scenes, say how that approach would treat this scene's pacing and what the writer could borrow. Do not imitate or reproduce ${a.name}'s prose.\nPlotting: ${a.plotcraft || ''}\nPacing: ${a.pacing || ''}\nSentence rhythm: ${a.rhythm || a.voice || ''}\nStructure: ${a.structure || ''}`; }],
     ['bible', 'Continuity against the story bible', () => `Check this scene for contradictions with the story bible below (names, traits, places, facts). List only real conflicts or likely slips.\nStory bible:\n${entries.map((e) => `${e.name} (${e.kindLabel}): ${e.brief}`).join('\n').slice(0, 12000) || '(empty)'}`],
     ['own', 'Ask your own question', () => ask.value.trim()],
   ];
