@@ -1,0 +1,12 @@
+{
+  "name": "writing-studio",
+  "version": "1.0.0",
+  "description": "Self-hosted single-user writing studio (plots, characters, storyboard, tracker, author style guides, non-fiction, craft).",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "test": "node --disable-warning=ExperimentalWarning scripts/smoke-test.js"
+  }
+}
