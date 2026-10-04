@@ -24,7 +24,7 @@ rm -rf dist && mkdir -p dist/pkg
 cp -R server public package.json dist/pkg/
 find dist/pkg -name '.DS_Store' -delete
 echo "$STAMP" > dist/pkg/VERSION
-COPYFILE_DISABLE=1 tar -C dist/pkg -czf "dist/writing-studio-$STAMP.tgz" .   # COPYFILE_DISABLE: no macOS ._ files
+COPYFILE_DISABLE=1 tar --no-xattrs -C dist/pkg -czf "dist/writing-studio-$STAMP.tgz" .   # COPYFILE_DISABLE: no macOS ._ files
 
 echo "==> Checking the Pi ($PI_USER@$PI_HOST)"
 # Node may not be on the non-interactive SSH PATH (e.g. unpacked to /opt/node22): override with NODE_BIN=/path/to/node
@@ -44,7 +44,9 @@ echo "Backups: $BACKUP_DIR"
 
 echo "==> Installing service"
 sed -e "s#__USER__#$PI_USER#g" -e "s#__APP_DIR__#$APP_DIR#g" -e "s#__PORT__#$PI_PORT#g" -e "s#__NODE__#$NODE_BIN#g" -e "s#__BACKUP_DIR__#$BACKUP_DIR#g" scripts/writing-studio.service \
-  | $SSH 'sudo tee /etc/systemd/system/writing-studio.service >/dev/null && sudo systemctl daemon-reload && sudo systemctl enable writing-studio >/dev/null 2>&1 && sudo systemctl restart writing-studio'
+  | $SSH 'cat > /tmp/writing-studio.service'
+# -t gives sudo a terminal, so it can ask for the Pi password if it needs one.
+ssh -t $SSH_OPTS "$PI_USER@$PI_HOST" 'sudo sh -c "mv /tmp/writing-studio.service /etc/systemd/system/writing-studio.service && systemctl daemon-reload && systemctl enable writing-studio >/dev/null 2>&1 && systemctl restart writing-studio"'
 
 echo "==> Health check"
 for i in 1 2 3 4 5 6 7 8; do
