@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # Build on the Mac, install on the Pi.
-#   PI_HOST=raspberrypi.local PI_USER=pi ./scripts/deploy.sh
+#   ./scripts/deploy.sh            (defaults: anujjha1989@anujrpi.local)
+#   PI_HOST=other.local PI_USER=me ./scripts/deploy.sh
 # Layout on the Pi:  $APP_DIR/releases/<stamp>/  $APP_DIR/current -> latest  $APP_DIR/data (SQLite; never touched by deploys)
 set -euo pipefail
 
-PI_HOST="${PI_HOST:-raspberrypi.local}"
-PI_USER="${PI_USER:-pi}"
+PI_HOST="${PI_HOST:-anujrpi.local}"
+PI_USER="${PI_USER:-anujjha1989}"
 PI_PORT="${PI_PORT:-3080}"
 APP_DIR="${APP_DIR:-/home/$PI_USER/writing-studio}"
 KEEP="${KEEP_RELEASES:-5}"
-SSH="ssh -o ConnectTimeout=10 $PI_USER@$PI_HOST"
+# One shared connection, so the Pi password is asked for once instead of at every step.
+SSH_OPTS="-o ConnectTimeout=10 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/ws-deploy-%r@%h"
+SSH="ssh $SSH_OPTS $PI_USER@$PI_HOST"
 cd "$(dirname "$0")/.."
 
 echo "==> Building"
@@ -32,11 +35,15 @@ echo "Using $NODE_BIN"
 
 echo "==> Uploading"
 $SSH "mkdir -p '$APP_DIR/releases/$STAMP' '$APP_DIR/data'"
-scp -q "dist/writing-studio-$STAMP.tgz" "$PI_USER@$PI_HOST:/tmp/writing-studio-$STAMP.tgz"
+scp -q $SSH_OPTS "dist/writing-studio-$STAMP.tgz" "$PI_USER@$PI_HOST:/tmp/writing-studio-$STAMP.tgz"
 $SSH "tar -C '$APP_DIR/releases/$STAMP' -xzf /tmp/writing-studio-$STAMP.tgz && rm /tmp/writing-studio-$STAMP.tgz && ln -sfn '$APP_DIR/releases/$STAMP' '$APP_DIR/current'"
 
+# Nightly backups go to the Seagate drive when it is mounted, otherwise next to the data.
+BACKUP_DIR="${WS_BACKUP_DIR:-$($SSH "if [ -d /mnt/seagate ] && mkdir -p /mnt/seagate/WritingStudio/backups 2>/dev/null && [ -w /mnt/seagate/WritingStudio/backups ]; then echo /mnt/seagate/WritingStudio/backups; else echo '$APP_DIR/data/backups'; fi")}"
+echo "Backups: $BACKUP_DIR"
+
 echo "==> Installing service"
-sed -e "s#__USER__#$PI_USER#g" -e "s#__APP_DIR__#$APP_DIR#g" -e "s#__PORT__#$PI_PORT#g" -e "s#__NODE__#$NODE_BIN#g" scripts/writing-studio.service \
+sed -e "s#__USER__#$PI_USER#g" -e "s#__APP_DIR__#$APP_DIR#g" -e "s#__PORT__#$PI_PORT#g" -e "s#__NODE__#$NODE_BIN#g" -e "s#__BACKUP_DIR__#$BACKUP_DIR#g" scripts/writing-studio.service \
   | $SSH 'sudo tee /etc/systemd/system/writing-studio.service >/dev/null && sudo systemctl daemon-reload && sudo systemctl enable writing-studio >/dev/null 2>&1 && sudo systemctl restart writing-studio'
 
 echo "==> Health check"

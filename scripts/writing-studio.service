@@ -8,6 +8,7 @@ User=__USER__
 WorkingDirectory=__APP_DIR__/current
 Environment=PORT=__PORT__
 Environment=NS_DATA_DIR=__APP_DIR__/data
+Environment=WS_BACKUP_DIR=__BACKUP_DIR__
 ExecStart=__NODE__ --disable-warning=ExperimentalWarning server/index.js
 Restart=on-failure
 RestartSec=3

@@ -1,28 +1,32 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Writing Studio">
-<meta name="theme-color" content="#1f2a44">
+<meta name="theme-color" content="#17453f">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preload" href="fonts/literata.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 <title>Writing Studio</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('ws.theme')||'auto'}catch(e){}</script>
 </head>
 <body>
+<aside id="spine" aria-label="Sections"></aside>
 <header id="top">
-  <button id="menubtn" class="btn ghost" aria-label="Menu">☰</button>
-  <a href="#/" id="brand">Writing Studio</a>
-  <span id="projname"></span>
+  <button id="menubtn" class="btn icon ghost" aria-label="Open sections"></button>
+  <a href="#/" id="brand"></a>
   <span id="savestatus" aria-live="polite"></span>
+  <button id="searchbtn" class="btn icon ghost" aria-label="Search"></button>
 </header>
-<nav id="drawer" hidden></nav>
-<main id="app"><p class="muted pad">Loading…</p></main>
-<nav id="bottombar"></nav>
+<main id="app"><p class="muted pad">Opening your desk</p></main>
+<nav id="bottombar" aria-label="Main"></nav>
 <script type="module" src="app.js"></script>
 </body>
 </html>
