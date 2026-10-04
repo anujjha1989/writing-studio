@@ -144,7 +144,7 @@ on('ws:login', () => {
   const inp = h('input', { class: 'in', type: 'password', autocomplete: 'current-password', placeholder: 'Passphrase' });
   const submit = async (e) => {
     e.preventDefault(); err.textContent = '';
-    const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passphrase: inp.value }) }).catch(() => null);
+    const r = await fetch('api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passphrase: inp.value }) }).catch(() => null);
     if (r?.ok) { location.reload(); return; }
     err.textContent = r ? (await r.json().catch(() => ({}))).error || 'That did not work.' : 'The Pi is not reachable.';
     inp.select();

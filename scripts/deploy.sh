@@ -11,7 +11,10 @@ PI_PORT="${PI_PORT:-3080}"
 APP_DIR="${APP_DIR:-/home/$PI_USER/writing-studio}"
 KEEP="${KEEP_RELEASES:-5}"
 # One shared connection, so the Pi password is asked for once instead of at every step.
-SSH_OPTS="-o ConnectTimeout=10 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/ws-deploy-%r@%h"
+# Use the Pi key if this Mac has one, so no password is needed to connect.
+PI_KEY="${PI_KEY:-$HOME/.ssh/id_ed25519_anujrpi_codex}"
+KEY_OPT=""; [ -f "$PI_KEY" ] && KEY_OPT="-i $PI_KEY"
+SSH_OPTS="$KEY_OPT -o ConnectTimeout=10 -o ControlMaster=auto -o ControlPersist=120 -o ControlPath=/tmp/ws-deploy-%r@%h"
 SSH="ssh $SSH_OPTS $PI_USER@$PI_HOST"
 cd "$(dirname "$0")/.."
 
@@ -56,4 +59,5 @@ done
 
 $SSH "ls -1dt '$APP_DIR'/releases/* | tail -n +$((KEEP+1)) | xargs -r rm -rf"
 echo "Deployed $STAMP -> http://$PI_HOST:$PI_PORT"
+echo "With Tailscale on: https://anujrpi.tail549492.ts.net/writing/"
 echo "On iOS Safari: open that URL, Share > Add to Home Screen."

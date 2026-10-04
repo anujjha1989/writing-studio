@@ -253,7 +253,7 @@ function notesPanel(s) {
     if (!question) return toast('Type your question first.');
     run.disabled = true; out.replaceChildren(h('p', { class: 'muted' }, 'Reading the scene. This usually takes under a minute.'));
     try {
-      const r = await req('POST', '/api/ai', { system: SYSTEM, max_tokens: 1400, prompt: `${question}\n\nBook: ${S.project.title} (${S.project.kind === 'nonfiction' ? 'non-fiction' : 'fiction'})\nScene title: ${s.title || 'Untitled'}\nPoint of view: ${s.pov || 'not set'}\n\nScene text:\n${draft.slice(0, 60000)}` });
+      const r = await req('POST', 'api/ai', { system: SYSTEM, max_tokens: 1400, prompt: `${question}\n\nBook: ${S.project.title} (${S.project.kind === 'nonfiction' ? 'non-fiction' : 'fiction'})\nScene title: ${s.title || 'Untitled'}\nPoint of view: ${s.pov || 'not set'}\n\nScene text:\n${draft.slice(0, 60000)}` });
       all('ainote').filter((n) => n.scene === s.id).forEach(remove);
       show(create('ainote', { scene: s.id, lens, text: r.text }));
     } catch (e) {

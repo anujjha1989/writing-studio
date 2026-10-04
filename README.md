@@ -33,6 +33,13 @@ git pull
 
 Defaults are `anujjha1989@anujrpi.local`, port 3080. Override with `PI_HOST`, `PI_USER`, `PI_PORT`, `APP_DIR` or `NODE_BIN`. The script tests, packages, copies over SSH (one password prompt), installs a systemd service and checks it came up. Data lives in `~/writing-studio/data` on the Pi and deploys never touch it.
 
+## Addresses
+
+- Home network: `http://anujrpi.local:3080`
+- Any device signed in to Tailscale: `https://anujrpi.tail549492.ts.net/writing/` (through Caddy on the Pi, the same way as the other apps; the route is in `/etc/caddy/Caddyfile`)
+
+The app uses relative paths, so it works at the root or under a sub-path.
+
 ## Settings worth knowing
 
 - **Feedback from Claude**: paste your own Anthropic API key in Settings. It is stored in `data/secrets.json` on the Pi (mode 600) and is never sent back to the browser. Nothing is sent to Anthropic unless you press "Get notes" on a scene.

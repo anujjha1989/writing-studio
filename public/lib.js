@@ -48,12 +48,12 @@ export async function req(method, url, body) {
 }
 
 export async function loadProjects() {
-  const list = await req('GET', '/api/records?type=project');
+  const list = await req('GET', 'api/records?type=project');
   return list.sort((a, b) => a.created - b.created);
 }
 export async function openProject(id) {
   const started = Date.now();
-  const [rows, logs] = await Promise.all([req('GET', `/api/records?project=${encodeURIComponent(id)}`), req('GET', '/api/records?type=wordlog')]);
+  const [rows, logs] = await Promise.all([req('GET', `api/records?project=${encodeURIComponent(id)}`), req('GET', 'api/records?type=wordlog')]);
   S.recs.clear();
   for (const r of rows) S.recs.set(r.id, r);
   restoreOutbox();
@@ -96,7 +96,7 @@ async function push(rec, force = false) {
   inflight.add(rec.id);
   setStatus('busy', 'Saving');
   try {
-    const r = await fetch(`/api/records/${encodeURIComponent(rec.id)}?base=${rec.updated_at || 0}${force ? '&force=1' : ''}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
+    const r = await fetch(`api/records/${encodeURIComponent(rec.id)}?base=${rec.updated_at || 0}${force ? '&force=1' : ''}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) });
     if (r.status === 409) {
       const { current } = await r.json();
       inflight.delete(rec.id);
@@ -138,7 +138,7 @@ export function put(rec, now = false) {
 }
 export function remove(rec) {
   S.recs.delete(rec.id); S.pending.delete(rec.id); clearTimeout(timers.get(rec.id)); saveOutbox();
-  return req('DELETE', `/api/records/${encodeURIComponent(rec.id)}${rec.type === 'project' ? '?cascade=project' : ''}`).then(() => { if (rec.type === 'project') for (const r of [...S.recs.values()]) if (r.project === rec.id) S.recs.delete(r.id); });
+  return req('DELETE', `api/records/${encodeURIComponent(rec.id)}${rec.type === 'project' ? '?cascade=project' : ''}`).then(() => { if (rec.type === 'project') for (const r of [...S.recs.values()]) if (r.project === rec.id) S.recs.delete(r.id); });
 }
 export function flush() {
   for (const rec of S.pending.values()) { if (inflight.has(rec.id)) continue; clearTimeout(timers.get(rec.id)); push(rec); }
@@ -148,7 +148,7 @@ export function flush() {
 export async function sync() {
   if (!S.project || document.hidden) return;
   try {
-    const r = await req('GET', `/api/changes?project=${encodeURIComponent(S.project.id)}&since=${S.syncAt}`);
+    const r = await req('GET', `api/changes?project=${encodeURIComponent(S.project.id)}&since=${S.syncAt}`);
     const changed = [];
     for (const row of r.rows) {
       if (S.pending.has(row.id)) continue;

@@ -20,7 +20,7 @@ export async function render() {
 
   const fmts = [['docx', 'Word'], ['epub', 'EPUB'], ['md', 'Markdown'], ['txt', 'Plain text']];
   const tools = h('div', { class: 'row toolbar' },
-    h('span', { class: 'muted small' }, 'Export as'), fmts.map(([f, l]) => h('a', { class: 'btn sm', href: `/api/manuscript/${encodeURIComponent(p.id)}/${f}`, download: '' }, f === 'docx' ? icon('download', 16) : null, l)),
+    h('span', { class: 'muted small' }, 'Export as'), fmts.map(([f, l]) => h('a', { class: 'btn sm', href: `api/manuscript/${encodeURIComponent(p.id)}/${f}`, download: '' }, f === 'docx' ? icon('download', 16) : null, l)),
     entries.length ? h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: linkNames, onChange: async (e) => { linkNames = e.target.checked; (await import('../app.js')).rerender(); } }), 'Link names to the story bible') : null);
 
   const toc = h('nav', { class: 'ms-toc', 'aria-label': 'Chapters' }, h('h2', {}, 'Chapters'), h('ol', {}, ms.chapters.map((c, i) => h('li', {}, h('a', { href: '#', onClick: (e) => { e.preventDefault(); document.getElementById('ch' + i)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }, h('span', {}, c.title || c.scenes[0]?.title || `Section ${i + 1}`), h('small', { class: 'num' }, fmt(c.words)))))));
