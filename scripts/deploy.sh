@@ -24,9 +24,11 @@ echo "$STAMP" > dist/pkg/VERSION
 COPYFILE_DISABLE=1 tar -C dist/pkg -czf "dist/writing-studio-$STAMP.tgz" .   # COPYFILE_DISABLE: no macOS ._ files
 
 echo "==> Checking the Pi ($PI_USER@$PI_HOST)"
-$SSH 'command -v node >/dev/null || { echo "Node is not installed on the Pi. Install Node 22+ (e.g. NodeSource: curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs)"; exit 1; }
-      node -e "const [a,b]=process.versions.node.split(\".\").map(Number); if(a<22||(a===22&&b<13)){console.error(\"Pi has Node \"+process.version+\"; need >= 22.13\");process.exit(1)}"'
-NODE_BIN="$($SSH 'command -v node')"
+# Node may not be on the non-interactive SSH PATH (e.g. unpacked to /opt/node22): override with NODE_BIN=/path/to/node
+NODE_BIN="$($SSH "for n in '${NODE_BIN:-}' /opt/node22/bin/node /usr/local/bin/node \$(command -v node); do [ -n \"\$n\" ] && [ -x \"\$n\" ] && echo \"\$n\" && break; done" || true)"
+[ -n "$NODE_BIN" ] || { echo "No Node found on the Pi. Install Node 22.13+ or set NODE_BIN=/path/to/node"; exit 1; }
+$SSH "'$NODE_BIN' -e 'const [a,b]=process.versions.node.split(\".\").map(Number); if(a<22||(a===22&&b<13)){console.error(\"Need Node >= 22.13, found \"+process.version);process.exit(1)}'"
+echo "Using $NODE_BIN"
 
 echo "==> Uploading"
 $SSH "mkdir -p '$APP_DIR/releases/$STAMP' '$APP_DIR/data'"

@@ -33,7 +33,7 @@ Environment: `PORT` (default 3080), `HOST` (default 0.0.0.0), `NS_DATA_DIR` (def
 PI_HOST=raspberrypi.local PI_USER=pi ./scripts/deploy.sh
 ```
 
-It runs the smoke test, packages `server/`, `public/` and `package.json` into a tarball, copies it over SSH, unpacks it as a timestamped release, flips a `current` symlink, installs and restarts a `writing-studio` systemd service, health-checks it, and prunes old releases (keeps 5). Your data lives in `~/writing-studio/data` and is never touched by deploys. Optional vars: `PI_PORT` (3080), `APP_DIR`, `KEEP_RELEASES`. The Pi needs Node 22.13+ (the script checks and prints install instructions) and passwordless `sudo` for the service install.
+It runs the smoke test, packages `server/`, `public/` and `package.json` into a tarball, copies it over SSH, unpacks it as a timestamped release, flips a `current` symlink, installs and restarts a `writing-studio` systemd service, health-checks it, and prunes old releases (keeps 5). Your data lives in `~/writing-studio/data` and is never touched by deploys. Optional vars: `PI_PORT` (3080), `APP_DIR`, `KEEP_RELEASES`. The Pi needs Node 22.13+ (the script looks at `$NODE_BIN`, `/opt/node22/bin/node`, `/usr/local/bin/node`, then PATH) and passwordless `sudo` for the service install.
 
 Then open `http://raspberrypi.local:3080` in iOS Safari and use **Share → Add to Home Screen**.
 
