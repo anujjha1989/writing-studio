@@ -71,6 +71,7 @@ function reading(a) {
   return out.join(' ');
 }
 
+let favouritesOnly = false;
 let tab = 'guides', q = '', sortKey = 'sent_mean', sortDir = -1;
 export async function render([id]) {
   if (id) return detail(AUTHORS.find((a) => a.id === id));
@@ -85,10 +86,10 @@ export async function render([id]) {
 function list() {
   const rows = AUTHORS.map((a) => ({ a, el: h('a', { class: 'author-row', href: `#/styles/${a.id}` }, h('b', {}, a.name), h('small', {}, a.kind ? a.kind.split(' / ')[0] : 'Numbers only')) }));
   const none = h('p', { class: 'muted' }, 'No writer matches that.');
-  const apply = () => { let n = 0; rows.forEach(({ a, el }) => { const hit = `${a.name} ${a.kind || ''} ${a.known || ''}`.toLowerCase().includes(q.toLowerCase()); el.hidden = !hit; if (hit) n++; }); none.hidden = n > 0; };
+  const apply = () => { let n = 0; rows.forEach(({ a, el }) => { const hit = (!favouritesOnly || get(`an-${a.id}`)?.favourite) && `${a.name} ${a.kind || ''} ${a.known || ''}`.toLowerCase().includes(q.toLowerCase()); el.hidden = !hit; if (hit) n++; }); none.hidden = n > 0; };
   const search = h('input', { class: 'in', type: 'search', placeholder: 'Find a writer, a genre or a title', 'aria-label': 'Search writers', value: q, onInput: (e) => { q = e.target.value; apply(); } });
   apply();
-  return h('div', { class: 'stack' }, h('div', { class: 'narrow' }, search), none, h('div', { class: 'authors' }, rows.map((r) => r.el)));
+  return h('div', { class: 'stack' }, h('div', { class: 'narrow' }, search, h('label', { class: 'switch', style: { marginTop: '12px' } }, h('input', { type: 'checkbox', checked: favouritesOnly, onChange: (e) => { favouritesOnly = e.target.checked; apply(); } }), 'Favourites only')), none, h('div', { class: 'authors' }, rows.map((r) => r.el)));
 }
 
 function table(draft) {
@@ -105,8 +106,12 @@ const SECTIONS = [['voice', 'Voice'], ['plotcraft', 'How the plots are built'], 
 function detail(a) {
   if (!a) return h('p', {}, 'That writer is not in the library.');
   const draft = draftMetrics();
+  const noteId = `an-${a.id}`;
+  const note = get(noteId) || { id: noteId, type: 'authnote', project: '', text: '' };
   const root = h('div', { class: 'stack-lg narrow' }, h('a', { class: 'back', href: '#/styles' }, icon('left', 16), 'Author styles'),
     h('header', {}, h('h1', {}, a.name), (a.kind || a.known) && h('p', { class: 'lede' }, [a.kind, a.known && `Known for ${a.known}`].filter(Boolean).join('. ') + '.')));
+
+  root.append(h('label', { class: 'switch' }, h('input', { type: 'checkbox', checked: !!note.favourite, onChange: (e) => { note.favourite = e.target.checked; put(note, true); } }), 'Favourite writer'));
 
   if (a.lib && METRICS[a.lib]) {
     const near = nearest(zvec((k) => val(a.lib, k)), a.lib);
@@ -131,8 +136,6 @@ function detail(a) {
     });
     root.append(sec);
   }
-  const noteId = `an-${a.id}`;
-  const note = get(noteId) || { id: noteId, type: 'authnote', project: '', text: '' };
   const nt = h('textarea', { class: 'in', rows: 4, placeholder: `What you notice when you read ${a.name}: books to study, habits, things to try`, 'aria-label': 'Your notes', value: note.text, onInput: (e) => { note.text = e.target.value; put(note); } }); autoGrow(nt);
   root.append(h('section', {}, h('h2', {}, 'Your notes'), nt));
   return root;

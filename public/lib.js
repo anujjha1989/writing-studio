@@ -79,8 +79,17 @@ export function create(type, data = {}) {
 
 const timers = new Map(), inflight = new Set(), dirty = new Set();
 let retryTimer = null;
-function saveOutbox() { try { S.pending.size ? localStorage.setItem('ws.outbox', JSON.stringify([...S.pending.values()])) : localStorage.removeItem('ws.outbox'); } catch { /* quota */ } }
-function restoreOutbox() {
+let localSaveFailed = false;
+function saveOutbox() {
+  try {
+    S.pending.size ? localStorage.setItem('ws.outbox', JSON.stringify([...S.pending.values()])) : localStorage.removeItem('ws.outbox');
+    localSaveFailed = false; return true;
+  } catch {
+    if (!localSaveFailed) toast('This device could not keep a recovery copy. Keep this tab open until Saved on Pi appears.');
+    localSaveFailed = true; setStatus('off', 'Local recovery failed — keep this tab open'); return false;
+  }
+}
+export function restoreOutbox() {
   try { for (const r of JSON.parse(localStorage.getItem('ws.outbox') || '[]')) { if (!r?.id) continue; S.recs.set(r.id, r); S.pending.set(r.id, r); } } catch { /* ignore */ }
   if (S.pending.size) retrySoon(500);
 }
@@ -89,7 +98,7 @@ function settle() {
   saveOutbox();
   if (S.pending.size) return;
   if (S.offline) { S.offline = false; emit('ws:online'); }
-  setStatus('ok', 'Saved');
+  setStatus('ok', 'Saved on Pi');
 }
 async function push(rec, force = false) {
   if (inflight.has(rec.id)) { dirty.add(rec.id); return; }
@@ -109,8 +118,8 @@ async function push(rec, force = false) {
     settle();
   } catch (e) {
     S.offline = true;
-    saveOutbox();
-    setStatus('off', navigator.onLine === false || /fetch|network|load/i.test(String(e.message)) ? 'Offline, kept on this device' : 'Not saved yet');
+    const locallySaved = saveOutbox();
+    if (locallySaved) setStatus('off', navigator.onLine === false || /fetch|network|load/i.test(String(e.message)) ? 'Offline, kept on this device' : 'Not saved yet');
     retrySoon();
   } finally {
     inflight.delete(rec.id);
@@ -131,14 +140,20 @@ export function put(rec, now = false) {
   if (!rec.id || !rec.type) return; // transient form objects are never persisted
   S.recs.set(rec.id, rec);
   S.pending.set(rec.id, rec);
+  const locallySaved = saveOutbox();
   clearTimeout(timers.get(rec.id));
   if (now) return push(rec);
   timers.set(rec.id, setTimeout(() => push(rec), 700));
-  setStatus('busy', 'Editing');
+  if (locallySaved) setStatus('busy', 'Saved on this device · syncing');
 }
-export function remove(rec) {
-  S.recs.delete(rec.id); S.pending.delete(rec.id); clearTimeout(timers.get(rec.id)); saveOutbox();
-  return req('DELETE', `api/records/${encodeURIComponent(rec.id)}${rec.type === 'project' ? '?cascade=project' : ''}`).then(() => { if (rec.type === 'project') for (const r of [...S.recs.values()]) if (r.project === rec.id) S.recs.delete(r.id); });
+export async function remove(rec) {
+  if (S.pending.has(rec.id)) {
+    while (inflight.has(rec.id)) await new Promise((resolve) => setTimeout(resolve, 50));
+    if (S.pending.has(rec.id)) await push(rec);
+    if (S.pending.has(rec.id)) { toast('Wait until this item is saved on the Pi before deleting it.'); throw new Error('Unsaved edits must sync before deletion'); }
+  }
+  clearTimeout(timers.get(rec.id));
+  return req('DELETE', `api/records/${encodeURIComponent(rec.id)}${rec.type === 'project' ? '?cascade=project' : ''}`).then(() => { S.recs.delete(rec.id); S.pending.delete(rec.id); saveOutbox(); if (rec.type === 'project') for (const r of [...S.recs.values()]) if (r.project === rec.id) S.recs.delete(r.id); emit('ws:changed', [rec.id]); });
 }
 export function flush() {
   for (const rec of S.pending.values()) { if (inflight.has(rec.id)) continue; clearTimeout(timers.get(rec.id)); push(rec); }
@@ -159,7 +174,7 @@ export async function sync() {
     }
     for (const id of r.deleted) if (S.recs.has(id) && !S.pending.has(id)) { S.recs.delete(id); changed.push(id); }
     S.syncAt = r.now - 2000;
-    if (S.offline && !S.pending.size) { S.offline = false; setStatus('ok', 'Saved'); }
+    if (S.offline && !S.pending.size) { S.offline = false; setStatus('ok', 'Saved on Pi'); }
     if (changed.length) { S.project = S.recs.get(S.project.id) || S.project; emit('ws:changed', changed); }
   } catch { /* offline: the outbox handles it */ }
 }

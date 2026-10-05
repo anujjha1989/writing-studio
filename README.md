@@ -61,3 +61,15 @@ The app uses relative paths, so it works at the root or under a sub-path.
 
 - Real iOS Safari. Everything was tested in Chromium at phone and desktop sizes, including drag and drop with pointer events.
 - Feedback from Claude with a real key. The request path is tested up to the point of calling Anthropic.
+
+## Recovery and book setup
+
+Book creation starts with kind, working title and an optional premise, followed by optional targets and a plot structure. The premise remains editable in Book settings. Author guides can be marked as favourites and filtered; these choices are stored on the Pi with your author notes.
+
+Each edit immediately updates the device's recovery outbox before the network save. The status distinguishes local recovery from “Saved on Pi”; a storage failure warns you to keep the tab open. Local browser storage still has capacity limits and is not a substitute for server backups.
+
+When a saved scene's text changes, the server keeps its previous non-empty draft on the first change and then no more than once every five minutes. It retains the latest 30 automatic versions per scene, alongside manual versions. Open the editor's Versions panel to compare or restore them.
+
+Deleting a scene moves its draft and versions to Settings → Deleted scenes for the open book. Restore brings them back together. Deleting the entire book also deletes its recovery items. Backups use unique filenames even on the same day, and a replace import stops if its prerequisite backup fails. Backup retention remains the configured number of files (30 by default), not a guaranteed number of days.
+
+These changes use the existing editable JavaScript source and packaging path; no generated bundle or live-file edits are required.

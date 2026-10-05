@@ -1,4 +1,4 @@
-import { h, $, S, icon, openProject, loadProjects, flush, on, req, btn, field, all, orderedScenes, applyCloth, toast, AuthError } from './lib.js';
+import { h, $, S, icon, openProject, loadProjects, flush, on, req, btn, field, all, orderedScenes, applyCloth, toast, AuthError, restoreOutbox } from './lib.js';
 
 // [route, icon, label, group]
 const NAV = [
@@ -39,7 +39,7 @@ async function route(keepScroll) {
       const list = await loadProjects();
       let want = null; try { want = localStorage.getItem('ws.project'); } catch { /* private mode */ }
       const pick = list.find((p) => p.id === want) || list[0];
-      if (pick) await openProject(pick.id); else { S.ready = true; applyCloth(); }
+      if (pick) await openProject(pick.id); else { const notes = await req('GET', 'api/records?type=authnote'); notes.forEach((r) => S.recs.set(r.id, r)); const practice = await req('GET', 'api/records?type=practice'); practice.forEach((r) => S.recs.set(r.id, r)); restoreOutbox(); S.ready = true; applyCloth(); }
     }
     const mod = await (loaders[section] || loaders[''])();
     if (my !== seq) return;

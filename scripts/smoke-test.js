@@ -46,12 +46,38 @@ try {
 
   // backup + export/import round-trip
   assert.match((await j('/api/backup', { method: 'POST' })).file, /\.json\.gz$/);
+  const secondBackup = (await j('/api/backup', { method: 'POST' })).file;
+  const thirdBackup = (await j('/api/backup', { method: 'POST' })).file;
+  assert.notEqual(secondBackup, thirdBackup);
+  assert.ok(fs.existsSync(path.join(dir, 'bk', secondBackup)));
   const exp = await (await f('/api/export')).text();
   await f('/api/records/s1', { method: 'DELETE' });
   assert.equal((await j('/api/records?type=scene&project=p1')).length, 0);
   await j('/api/import?mode=replace', { method: 'POST', body: exp });
   assert.equal((await j('/api/records?type=scene&project=p1'))[0].title, 'Scene');
   assert.equal((await f('/api/import', { method: 'POST', body: '{"app":"other"}' })).status, 400);
+
+  // Automatic snapshots preserve the earlier draft; deletion and restore retain versions.
+  const original = (await j('/api/records?type=scene&project=p1'))[0];
+  await put('s1', { ...original, draft: 'A revised draft.', words: 3 }, `?base=${original.updated_at}`);
+  const versions = await j('/api/records?type=snap&project=p1');
+  assert.ok(versions.some((v) => v.automatic && v.text === original.draft));
+  await put('s1', { ...original, draft: 'A second revision.', words: 3 }, '?force=1');
+  assert.equal((await j('/api/records?type=snap&project=p1')).filter((v) => v.automatic).length, 1, 'rapid edits do not create a version per keystroke');
+  await put('s1', { ...original, draft: 'A revised draft.', words: 3 }, '?force=1');
+  await f('/api/records/s1', { method: 'DELETE' });
+  const trash = (await j('/api/records?type=trash&project=p1')).sort((a, b) => b.created - a.created).find((t) => t.records.some((r) => r.id === 's1'));
+  assert.ok(trash.records.some((r) => r.type === 'snap'));
+  assert.equal((await f('/api/trash/' + trash.id, { method: 'POST' })).status, 200);
+  assert.equal((await j('/api/records?type=scene&project=p1'))[0].draft, 'A revised draft.');
+  assert.ok((await j('/api/records?type=snap&project=p1')).some((v) => v.automatic));
+
+  // A failed prerequisite backup must leave existing records intact.
+  const backupDir = path.join(dir, 'bk');
+  fs.renameSync(backupDir, backupDir + '-saved'); fs.writeFileSync(backupDir, 'not a directory');
+  assert.equal((await f('/api/import?mode=replace', { method: 'POST', body: exp })).status, 500);
+  assert.equal((await j('/api/records?type=scene&project=p1'))[0].draft, 'A revised draft.');
+  fs.unlinkSync(backupDir); fs.renameSync(backupDir + '-saved', backupDir);
 
   // AI without a key explains itself; settings never return the key
   assert.equal((await f('/api/ai', { method: 'POST', body: JSON.stringify({ prompt: 'hi' }) })).status, 400);
