@@ -48,8 +48,13 @@ echo "Backups: $BACKUP_DIR"
 echo "==> Installing service"
 sed -e "s#__USER__#$PI_USER#g" -e "s#__APP_DIR__#$APP_DIR#g" -e "s#__PORT__#$PI_PORT#g" -e "s#__NODE__#$NODE_BIN#g" -e "s#__BACKUP_DIR__#$BACKUP_DIR#g" scripts/writing-studio.service \
   | $SSH 'cat > /tmp/writing-studio.service'
-# -t gives sudo a terminal, so it can ask for the Pi password if it needs one.
-ssh -t $SSH_OPTS "$PI_USER@$PI_HOST" 'sudo sh -c "mv /tmp/writing-studio.service /etc/systemd/system/writing-studio.service && systemctl daemon-reload && systemctl enable writing-studio >/dev/null 2>&1 && systemctl restart writing-studio"'
+# If the service file is unchanged, a restart is enough, and the Pi allows that without a password
+# (/etc/sudoers.d/writing-studio). Otherwise install it, which needs a terminal for the sudo password.
+if $SSH 'cmp -s /tmp/writing-studio.service /etc/systemd/system/writing-studio.service && sudo -n /usr/bin/systemctl restart writing-studio'; then
+  echo "Service restarted"
+else
+  ssh -t $SSH_OPTS "$PI_USER@$PI_HOST" 'sudo sh -c "mv /tmp/writing-studio.service /etc/systemd/system/writing-studio.service && systemctl daemon-reload && systemctl enable writing-studio >/dev/null 2>&1 && systemctl restart writing-studio"'
+fi
 
 echo "==> Health check"
 for i in 1 2 3 4 5 6 7 8; do
