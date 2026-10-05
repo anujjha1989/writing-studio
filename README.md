@@ -71,5 +71,3 @@ Each edit immediately updates the device's recovery outbox before the network sa
 When a saved scene's text changes, the server keeps its previous non-empty draft on the first change and then no more than once every five minutes. It retains the latest 30 automatic versions per scene, alongside manual versions. Open the editor's Versions panel to compare or restore them.
 
 Deleting a scene moves its draft and versions to Settings → Deleted scenes for the open book. Restore brings them back together. Deleting the entire book also deletes its recovery items. Backups use unique filenames even on the same day, and a replace import stops if its prerequisite backup fails. Backup retention remains the configured number of files (30 by default), not a guaranteed number of days.
-
-These changes use the existing editable JavaScript source and packaging path; no generated bundle or live-file edits are required.

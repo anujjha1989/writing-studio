@@ -86,7 +86,7 @@ function saveOutbox() {
     localSaveFailed = false; return true;
   } catch {
     if (!localSaveFailed) toast('This device could not keep a recovery copy. Keep this tab open until Saved on Pi appears.');
-    localSaveFailed = true; setStatus('off', 'Local recovery failed — keep this tab open'); return false;
+    localSaveFailed = true; setStatus('off', 'Local recovery failed, keep this tab open'); return false;
   }
 }
 export function restoreOutbox() {
@@ -144,21 +144,35 @@ export function put(rec, now = false) {
   clearTimeout(timers.get(rec.id));
   if (now) return push(rec);
   timers.set(rec.id, setTimeout(() => push(rec), 700));
-  if (locallySaved) setStatus('busy', 'Saved on this device · syncing');
+  if (locallySaved) setStatus('busy', 'Kept on this device, sending');
 }
 export async function remove(rec) {
+  let waited = false;
   if (S.pending.has(rec.id)) {
+    waited = true;
     while (inflight.has(rec.id)) await new Promise((resolve) => setTimeout(resolve, 50));
     if (S.pending.has(rec.id)) await push(rec);
     if (S.pending.has(rec.id)) { toast('Wait until this item is saved on the Pi before deleting it.'); throw new Error('Unsaved edits must sync before deletion'); }
   }
   clearTimeout(timers.get(rec.id));
-  return req('DELETE', `api/records/${encodeURIComponent(rec.id)}${rec.type === 'project' ? '?cascade=project' : ''}`).then(() => { S.recs.delete(rec.id); S.pending.delete(rec.id); saveOutbox(); if (rec.type === 'project') for (const r of [...S.recs.values()]) if (r.project === rec.id) S.recs.delete(r.id); emit('ws:changed', [rec.id]); });
+  S.recs.delete(rec.id); // remove from view at once; put back if the Pi refuses
+  try {
+    await req('DELETE', `api/records/${encodeURIComponent(rec.id)}${rec.type === 'project' ? '?cascade=project' : ''}`);
+  } catch (e) {
+    S.recs.set(rec.id, rec); emit('ws:local', [rec.id]);
+    if (!(e instanceof AuthError)) toast('That could not be deleted because the Pi did not answer. It is still here.');
+    throw e;
+  }
+  S.pending.delete(rec.id); saveOutbox();
+  if (rec.type === 'project') for (const r of [...S.recs.values()]) if (r.project === rec.id) S.recs.delete(r.id);
+  if (waited) emit('ws:local', [rec.id]);
 }
 export function flush() {
   for (const rec of S.pending.values()) { if (inflight.has(rec.id)) continue; clearTimeout(timers.get(rec.id)); push(rec); }
   saveOutbox();
 }
+// Versions and recovery items the server makes itself arrive silently; they are not another device editing.
+const QUIET_TYPES = new Set(['snap', 'trash']);
 // Pull what other devices changed since the last look.
 export async function sync() {
   if (!S.project || document.hidden) return;
@@ -170,9 +184,9 @@ export async function sync() {
       const cur = S.recs.get(row.id);
       if (cur && cur.updated_at >= row.updated_at) continue;
       if (cur) { Object.keys(cur).forEach((k) => delete cur[k]); Object.assign(cur, row); } else S.recs.set(row.id, row);
-      changed.push(row.id);
+      if (!QUIET_TYPES.has(row.type)) changed.push(row.id);
     }
-    for (const id of r.deleted) if (S.recs.has(id) && !S.pending.has(id)) { S.recs.delete(id); changed.push(id); }
+    for (const id of r.deleted) if (S.recs.has(id) && !S.pending.has(id)) { const quiet = QUIET_TYPES.has(S.recs.get(id).type); S.recs.delete(id); if (!quiet) changed.push(id); }
     S.syncAt = r.now - 2000;
     if (S.offline && !S.pending.size) { S.offline = false; setStatus('ok', 'Saved on Pi'); }
     if (changed.length) { S.project = S.recs.get(S.project.id) || S.project; emit('ws:changed', changed); }

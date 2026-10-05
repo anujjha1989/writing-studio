@@ -159,6 +159,9 @@ on('ws:changed', (ids) => {
   rerender();
 });
 
+// A local change finished late (for example a delete that had to wait for a save): redraw quietly.
+on('ws:local', () => { if (!/TEXTAREA|INPUT/.test(document.activeElement?.tagName || '') && !document.querySelector('.modal-back')) rerender(); });
+
 addEventListener('hashchange', () => { flush(); route(); });
 buildChrome();
 route();

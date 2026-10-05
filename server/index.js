@@ -122,6 +122,9 @@ function backupTick() {
 setInterval(backupTick, 30 * 60 * 1000).unref();
 setTimeout(backupTick, 60 * 1000).unref();
 
+const AUTO_EVERY = 5 * 60 * 1000;
+const lastAuto = new Map(); // scene id -> time of its newest automatic version
+
 // ---------- API ----------
 async function api(req, res, url) {
   const parts = url.pathname.split('/').filter(Boolean).slice(1).map(decodeURIComponent); // after "api"
@@ -220,10 +223,13 @@ async function api(req, res, url) {
         db.exec('BEGIN');
         try {
           // Snapshot the previous draft on the first change, then at most every five minutes.
-          if (type === 'scene' && cur && row(cur).draft && row(cur).draft !== data.draft) {
+          // lastAuto avoids reading every saved version of the book on each keystroke-save.
+          if (type === 'scene' && cur && now - (lastAuto.get(b) || 0) >= AUTO_EVERY && row(cur).draft && row(cur).draft !== data.draft) {
             const previous = row(cur);
             const versions = q.byTypeProject.all('snap', cur.project).map(row).filter((v) => v.scene === b && v.automatic).sort((a, b) => b.created - a.created);
-            if (!versions.length || now - versions[0].created >= 5 * 60 * 1000) {
+            lastAuto.set(b, versions[0]?.created || 0);
+            if (!versions.length || now - versions[0].created >= AUTO_EVERY) {
+              lastAuto.set(b, now);
               q.upsert.run(crypto.randomUUID(), 'snap', cur.project, JSON.stringify({ scene: b, label: 'Automatic recovery version', text: previous.draft, words: previous.words || 0, created: now, automatic: true }), now);
               for (const old of versions.slice(29)) { q.del.run(old.id); q.tomb.run(old.id, cur.project, now); }
             }
