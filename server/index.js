@@ -104,11 +104,11 @@ const exportAll = () => ({ app: 'writing-studio', version: 2, exported_at: Date.
 
 // ---------- backups ----------
 const day = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-function listBackups() { try { return fs.readdirSync(BACKUP_DIR).filter((f) => /^writing-studio-.*\.json\.gz$/.test(f)).sort(); } catch { return []; } }
+function listBackups() { try { return fs.readdirSync(BACKUP_DIR).filter((f) => /^writing-studio-.*\.json\.gz$/.test(f)).sort((a, b) => fs.statSync(path.join(BACKUP_DIR, a)).mtimeMs - fs.statSync(path.join(BACKUP_DIR, b)).mtimeMs || a.localeCompare(b)); } catch { return []; } }
 function runBackup() {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
-  const file = path.join(BACKUP_DIR, `writing-studio-${day()}.json.gz`);
-  fs.writeFileSync(file, zlib.gzipSync(JSON.stringify(exportAll())));
+  const file = path.join(BACKUP_DIR, `writing-studio-${day()}-${Date.now()}-${crypto.randomBytes(3).toString("hex")}.json.gz`);
+  fs.writeFileSync(file, zlib.gzipSync(JSON.stringify(exportAll())), { flag: 'wx', mode: 0o600 });
   const all = listBackups();
   for (const old of all.slice(0, Math.max(0, all.length - KEEP_BACKUPS))) fs.rmSync(path.join(BACKUP_DIR, old), { force: true });
   return file;
@@ -165,7 +165,7 @@ async function api(req, res, url) {
       const body = JSON.parse(await readBody(req));
       if (body.app !== 'writing-studio' || !Array.isArray(body.records)) return send(res, 400, { error: 'Not a Writing Studio export' });
       const replace = url.searchParams.get('mode') === 'replace';
-      if (replace) { try { runBackup(); } catch { /* best effort */ } }
+      if (replace) runBackup(); // Do not replace data unless its recovery copy succeeded.
       db.exec('BEGIN');
       try {
         if (replace) q.clear.run();
@@ -183,6 +183,19 @@ async function api(req, res, url) {
     if (a === 'changes' && M === 'GET') {
       const since = Number(url.searchParams.get('since')) || 0;
       return send(res, 200, { now: Date.now(), rows: q.changed.all(url.searchParams.get('project') || '', since).map(row), deleted: q.tombsSince.all(since).map((t) => t.id) });
+    }
+
+    if (a === 'trash' && M === 'POST' && b) {
+      const saved = q.one.get(b);
+      if (!saved || saved.type !== 'trash') return send(res, 404, { error: 'Recovery item not found' });
+      const item = row(saved), now = Date.now();
+      if (item.records.some((r) => q.one.get(r.id))) return send(res, 409, { error: 'An item with this ID already exists' });
+      db.exec('BEGIN');
+      try {
+        for (const r of item.records) { const { id, type, project, updated_at, ...data } = r; q.upsert.run(id, type, project, JSON.stringify(data), now); q.untomb.run(id); }
+        q.del.run(b); q.tomb.run(b, saved.project, now); db.exec('COMMIT');
+      } catch (e) { db.exec('ROLLBACK'); throw e; }
+      return send(res, 200, { ok: true });
     }
 
     if (a === 'records') {
@@ -204,12 +217,37 @@ async function api(req, res, url) {
           return send(res, 409, { conflict: true, current: row(cur) });
         }
         const now = Math.max(Date.now(), (cur?.updated_at || 0) + 1);
-        q.upsert.run(b, type, String(project || ''), json, now);
-        q.untomb.run(b);
+        db.exec('BEGIN');
+        try {
+          // Snapshot the previous draft on the first change, then at most every five minutes.
+          if (type === 'scene' && cur && row(cur).draft && row(cur).draft !== data.draft) {
+            const previous = row(cur);
+            const versions = q.byTypeProject.all('snap', cur.project).map(row).filter((v) => v.scene === b && v.automatic).sort((a, b) => b.created - a.created);
+            if (!versions.length || now - versions[0].created >= 5 * 60 * 1000) {
+              q.upsert.run(crypto.randomUUID(), 'snap', cur.project, JSON.stringify({ scene: b, label: 'Automatic recovery version', text: previous.draft, words: previous.words || 0, created: now, automatic: true }), now);
+              for (const old of versions.slice(29)) { q.del.run(old.id); q.tomb.run(old.id, cur.project, now); }
+            }
+          }
+          q.upsert.run(b, type, String(project || ''), json, now);
+          q.untomb.run(b);
+          db.exec('COMMIT');
+        } catch (e) { db.exec('ROLLBACK'); throw e; }
         return send(res, 200, { ok: true, updated_at: now });
       }
       if (M === 'DELETE' && b) {
         const now = Date.now();
+        const scene = q.one.get(b);
+        if (scene?.type === 'scene') {
+          const versions = q.byTypeProject.all('snap', scene.project).map(row).filter((v) => v.scene === b);
+          const id = crypto.randomUUID();
+          db.exec('BEGIN');
+          try {
+            q.upsert.run(id, 'trash', scene.project, JSON.stringify({ title: row(scene).title || 'Untitled scene', created: now, records: [row(scene), ...versions] }), now);
+            for (const r of [row(scene), ...versions]) { q.del.run(r.id); q.tomb.run(r.id, scene.project, now); }
+            db.exec('COMMIT');
+          } catch (e) { db.exec('ROLLBACK'); throw e; }
+          return send(res, 200, { ok: true });
+        }
         if (url.searchParams.get('cascade') === 'project') { for (const r of q.idsOfProject.all(b)) q.tomb.run(r.id, b, now); q.delProject.run(b); }
         const cur = q.one.get(b);
         q.del.run(b); q.tomb.run(b, cur?.project || '', now);
@@ -235,7 +273,7 @@ async function api(req, res, url) {
         saveSecrets();
       }
       const backups = listBackups();
-      return send(res, 200, { hasKey: !!secrets.apiKey, model: secrets.model, models: MODELS, passphrase: !!secrets.auth, version: VERSION, backupDir: BACKUP_DIR, backups: backups.length, lastBackup: backups.at(-1) || '' });
+      return send(res, 200, { hasKey: !!secrets.apiKey, model: secrets.model, models: MODELS, passphrase: !!secrets.auth, version: VERSION, backupDir: BACKUP_DIR, backups: backups.length, lastBackup: backups.at(-1) || '', lastBackupAt: backups.length ? fs.statSync(path.join(BACKUP_DIR, backups.at(-1))).mtimeMs : null });
     }
     if (a === 'backup' && M === 'POST') return send(res, 200, { ok: true, file: path.basename(runBackup()) });
 

@@ -120,6 +120,6 @@ export function editScene(s, isNew = false) {
   let deleted = false;
   const body = h('div', { class: 'stack' }, sceneFields(s),
     h('div', { class: 'row sb' }, btn('Write this scene', () => { close(); go('write/' + s.id); }, 'primary', 'pen'),
-      btn('Delete scene', async () => { if (await confirmDlg('Delete this scene?', 'The card, its draft and its saved versions are deleted.', 'Delete scene')) { all('snap').filter((x) => x.scene === s.id).forEach(remove); deleted = true; remove(s); close(); } }, 'danger', 'trash')));
+      btn('Delete scene', async () => { if (await confirmDlg('Delete this scene?', 'The scene and its versions move to Deleted scenes in Settings, where you can restore them.', 'Delete scene')) { await remove(s); all('snap').filter((x) => x.scene === s.id).forEach((x) => S.recs.delete(x.id)); deleted = true; close(); } }, 'danger', 'trash')));
   const close = modal(isNew ? 'New scene' : 'Scene', body, [['Done', () => {}, 'primary']], () => { if (!deleted) { if (!s.title) s.title = 'Untitled scene'; put(s, true); } setTimeout(rerender, 120); }, { wide: true });
 }

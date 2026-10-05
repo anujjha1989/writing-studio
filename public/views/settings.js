@@ -1,9 +1,9 @@
-import { h, S, btn, field, req, toast, confirmDlg, pageHead, modal, loadProjects, openProject, icon } from '../lib.js';
+import { h, S, btn, field, req, toast, confirmDlg, pageHead, modal, loadProjects, openProject, icon, when } from '../lib.js';
 import { rerender, THEMES, setTheme, getTheme } from '../app.js';
 import { newProject, projectSettings, cover } from './home.js';
 
 export async function render() {
-  const [st, projects] = await Promise.all([req('GET', 'api/settings'), loadProjects()]);
+  const [st, projects, recovered] = await Promise.all([req('GET', 'api/settings'), loadProjects(), S.project ? req('GET', 'api/records?type=trash&project=' + encodeURIComponent(S.project.id)) : []]);
   const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } } };
 
   // --- Claude key ---
@@ -64,9 +64,14 @@ export async function render() {
         st.passphrase ? btn('Lock this device', async () => { await req('POST', 'api/auth/logout'); location.reload(); }, 'ghost') : null)),
 
     h('section', {}, h('h2', {}, 'Backups'),
-      h('p', { class: 'muted' }, st.backups ? `The Pi keeps a copy every night. ${st.backups} saved, the latest is ${st.lastBackup.replace('writing-studio-', '').replace('.json.gz', '')}.` : 'The Pi makes a copy every night after 3 am. None yet.'),
+      h('p', { class: 'muted' }, st.backups ? `The Pi keeps a copy every night. ${st.backups} saved, the latest is ${st.lastBackupAt ? when(st.lastBackupAt) : st.lastBackup.replace('writing-studio-', '').replace('.json.gz', '')}.` : 'The Pi makes a copy every night after 3 am. None yet.'),
       h('p', { class: 'muted small' }, `Kept in ${st.backupDir}`),
       h('div', { class: 'row' }, btn('Back up now', async () => { const r = await req('POST', 'api/backup'); toast(`Saved ${r.file}.`); rerender(); }, '', 'cloud'), h('a', { class: 'btn', href: 'api/export', download: '' }, icon('download', 18), 'Download a copy'), btn('Restore from a file', () => file.click()), file)),
+
+    h('section', {}, h('h2', {}, 'Deleted scenes'),
+      h('p', { class: 'muted' }, 'Deleted scenes keep their text and saved versions here until you restore them or delete their book.'),
+      ...recovered.map((item) => h('div', { class: 'rowitem static' }, h('span', { class: 'grow' }, item.title, h('small', {}, when(item.created))), btn('Restore scene', async () => { try { await req('POST', 'api/trash/' + encodeURIComponent(item.id)); await openProject(S.project.id); toast('Scene and versions restored.'); rerender(); } catch (e) { toast(e.message); } }, 'sm'))),
+      !recovered.length && h('p', { class: 'muted small' }, 'No deleted scenes in the open book.')),
 
     h('section', {}, h('h2', {}, 'Working away from home'),
       h('p', { class: 'muted' }, isSecureContext ? ('serviceWorker' in navigator ? 'This address is secure, so the app also opens with no connection. Edits made offline are kept on this device and sent when the Pi is reachable again.' : 'This browser does not support opening the app offline.') : 'On this plain home address the app needs the Pi to open. If the connection drops while you write, edits are kept on this device and sent when it returns. Opening the app through a secure (https) address adds full offline use.'),

@@ -1,4 +1,4 @@
-import { h, S, all, get, put, create, remove, btn, iconBtn, icon, orderedScenes, wordCount, fmt, logWords, acts, modal, tabs, toast, when, req, confirmDlg, askText, pageHead, empty, uid, svg } from '../lib.js';
+import { h, S, all, get, put, create, remove, btn, iconBtn, icon, orderedScenes, wordCount, fmt, logWords, acts, modal, tabs, toast, when, req, confirmDlg, askText, pageHead, empty, uid, svg, sync } from '../lib.js';
 import { rerender, go } from '../app.js';
 import { sceneFields, newScene } from './story.js';
 import { analyse, segments, diffText, nameMatcher, mentions } from '../text.js';
@@ -176,6 +176,7 @@ function versionsPanel(s, ta, after) {
         : h('p', { class: 'muted' }, 'Save a version before a risky rewrite. You can compare it with the current text and restore it at any time.'));
   };
   draw();
+  sync().then(draw); // Include server-created automatic recovery versions immediately.
   return box;
 }
 function compare(v, s) {

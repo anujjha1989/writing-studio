@@ -97,17 +97,25 @@ function clothPicker(rec) {
 }
 
 export function newProject() {
-  const rec = { title: '', author: (all('project').at(-1) || {}).author || '', kind: 'fiction', goalWords: 80000, dailyTarget: 500, deadline: '', structure: '', cloth: CLOTHS[all('project').length % CLOTHS.length][1] };
+  const rec = { premise: '', title: '', author: (all('project').at(-1) || {}).author || '', kind: 'fiction', goalWords: 80000, dailyTarget: 500, deadline: '', structure: '', cloth: CLOTHS[all('project').length % CLOTHS.length][1] };
   const err = h('p', { class: 'form-error', role: 'alert' });
-  const body = h('div', { class: 'stack' },
-    field('Title', textInput(rec, 'title', { placeholder: 'A working title is fine' })),
-    h('div', { class: 'fields' }, field('Author name', textInput(rec, 'author')), field('Kind', select(rec, 'kind', [['fiction', 'Fiction'], ['nonfiction', 'Non-fiction']]))),
+  const options = h('div', { class: 'stack' },
+    h('p', { class: 'muted' }, 'These targets and structure are optional. You can change them later.'),
+    field('Author name', textInput(rec, 'author')),
     h('div', { class: 'fields' }, field('Word goal', textInput(rec, 'goalWords', { type: 'number', number: true, inputMode: 'numeric' })), field('Daily target', textInput(rec, 'dailyTarget', { type: 'number', number: true, inputMode: 'numeric' })), field('Deadline', textInput(rec, 'deadline', { type: 'date' }), 'Optional')),
     field('Start the storyboard from a structure', select(rec, 'structure', [['', 'Blank storyboard'], ...PLOTS.map((p) => [p.id, p.name])]), 'Adds one scene card per beat. You can change everything later.'),
-    field('Cover cloth', clothPicker(rec)), err);
-  modal('Start a book', body, [['Cancel', () => {}], ['Create book', async () => {
+    field('Cover cloth', clothPicker(rec)));
+  const basics = h('div', { class: 'stack' },
+    h('p', { class: 'muted' }, 'Start with an idea. A working title is enough.'),
+    field('Kind', select(rec, 'kind', [['fiction', 'Fiction'], ['nonfiction', 'Non-fiction']])),
+    field('Working title', textInput(rec, 'title', { placeholder: 'You can rename it later' })),
+    field('What is this book about?', textInput(rec, 'premise', { multi: true, rows: 3, placeholder: 'A character and their problem, or the question your book explores' }), 'Optional; saved with your book.'));
+  let step = 1;
+  const body = h('div', {}, basics, err);
+  modal('Start a book', body, [['Cancel', () => {}], ['Back', () => { if (step === 2) { step = 1; body.replaceChildren(basics, err); body.closest('.modal').querySelector('.modal-f .primary').textContent = 'Next'; } return false; }], ['Next', async () => {
     if (!rec.title.trim()) { err.textContent = 'Give the book a title, even a temporary one.'; return false; }
-    const p = { id: 'p' + Date.now().toString(36), type: 'project', project: '', created: Date.now(), title: rec.title.trim(), author: rec.author.trim(), kind: rec.kind, goalWords: rec.goalWords, dailyTarget: rec.dailyTarget || 500, deadline: rec.deadline, cloth: rec.cloth };
+    if (step === 1) { step = 2; body.replaceChildren(options, err); body.closest('.modal').querySelector('.modal-f .primary').textContent = 'Create book'; return false; }
+    const p = { id: 'p' + Date.now().toString(36), type: 'project', project: '', created: Date.now(), title: rec.title.trim(), premise: rec.premise.trim(), author: rec.author.trim(), kind: rec.kind, goalWords: rec.goalWords, dailyTarget: rec.dailyTarget || 500, deadline: rec.deadline, cloth: rec.cloth };
     await put(p, true);
     await openProject(p.id);
     if (rec.structure) scenesFromStructure(PLOTS.find((x) => x.id === rec.structure), p);
@@ -118,7 +126,7 @@ export function newProject() {
 export function projectSettings(p) {
   const actsRec = { acts: acts().join(', ') };
   const body = h('div', { class: 'stack' },
-    field('Title', textInput(p, 'title')), field('Author name', textInput(p, 'author'), 'Shown on the cover and in exported files.'),
+    field('Title', textInput(p, 'title')), field('Premise', textInput(p, 'premise', { multi: true })), field('Author name', textInput(p, 'author'), 'Shown on the cover and in exported files.'),
     h('div', { class: 'fields' }, field('Word goal', textInput(p, 'goalWords', { type: 'number', number: true, inputMode: 'numeric' })), field('Daily target', textInput(p, 'dailyTarget', { type: 'number', number: true, inputMode: 'numeric' })), field('Deadline', textInput(p, 'deadline', { type: 'date' }))),
     field('Acts or parts, separated by commas', textInput(actsRec, 'acts')),
     field('Cover cloth', clothPicker(p)),

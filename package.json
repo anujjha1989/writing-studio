@@ -4,9 +4,11 @@
   "description": "Self-hosted single-user writing studio (storyboard, editor, manuscript, story bible, tracker, author style guides, craft).",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server/index.js",
-    "test": "node --disable-warning=ExperimentalWarning scripts/smoke-test.js"
+    "test": "node --disable-warning=ExperimentalWarning scripts/smoke-test.js && node --disable-warning=ExperimentalWarning --experimental-vm-modules scripts/store-test.js"
   }
 }
