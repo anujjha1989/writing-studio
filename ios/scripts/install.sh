@@ -12,7 +12,7 @@ if [ -z "${DEVELOPMENT_TEAM:-}" ]; then
 fi
 [ -n "${DEVELOPMENT_TEAM:-}" ] || { echo "No Apple team found. Open Xcode > Settings > Accounts, sign in with your Apple ID, then run this again."; exit 1; }
 export DEVELOPMENT_TEAM
-DEVICE="${DEVICE:-$(xcrun devicectl list devices 2>/dev/null | awk '/available \(paired\)|connected/{for(i=1;i<=NF;i++) if ($i ~ /^[0-9A-F]{8}-[0-9A-F]{4}-/) {print $i; exit}}')}"
+DEVICE="${DEVICE:-$(xcrun devicectl list devices 2>/dev/null | awk '/physical/ && !/unavailable/{for(i=1;i<=NF;i++) if ($i ~ /^[0-9A-F]{8}-[0-9A-F]{4,}/) {print $i; exit}}')}"
 [ -n "$DEVICE" ] || { echo "No iPhone or iPad found. Unlock it, connect it by cable, and tap Trust."; exit 1; }
 echo "Team $DEVELOPMENT_TEAM, device $DEVICE"
 xcodegen generate >/dev/null
