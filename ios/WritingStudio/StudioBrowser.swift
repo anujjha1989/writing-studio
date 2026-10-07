@@ -17,6 +17,7 @@ final class StudioBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKU
     let webView: WKWebView
     private var downloads: [ObjectIdentifier: URL] = [:]
     private var lastCrash = Date.distantPast
+    private var sharedExport: URL?
     private var home: URL { URL(string: address)! }
 
     override init() {
@@ -111,7 +112,15 @@ final class StudioBrowser: NSObject, ObservableObject, WKNavigationDelegate, WKU
     }
     func downloadDidFinish(_ download: WKDownload) {
         loading = false
-        if let url = downloads.removeValue(forKey: ObjectIdentifier(download)) { shareItem = SharedItem(url: url) }
+        if let url = downloads.removeValue(forKey: ObjectIdentifier(download)) {
+            webView.endEditing(true)
+            sharedExport = url
+            shareItem = SharedItem(url: url)
+        }
+    }
+    func finishSharing() {
+        if let url = sharedExport { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        sharedExport = nil
     }
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
         loading = false; exportError = error.localizedDescription

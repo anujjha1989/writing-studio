@@ -9,6 +9,6 @@
   },
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server/index.js",
-    "test": "node --disable-warning=ExperimentalWarning scripts/smoke-test.js && node --disable-warning=ExperimentalWarning --experimental-vm-modules scripts/store-test.js"
+    "test": "node --disable-warning=ExperimentalWarning scripts/smoke-test.js && node --disable-warning=ExperimentalWarning --experimental-vm-modules scripts/store-test.js && node scripts/ios-install-test.js"
   }
 }

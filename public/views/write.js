@@ -54,7 +54,7 @@ function editor(s, scenes, sprintMin) {
   const paintCounts = () => { count.textContent = `${fmt(s.words || 0)}${s.target ? ' / ' + fmt(s.target) : ''} words`; bookCount.textContent = `Book ${fmt(orderedScenes().reduce((n, x) => n + (x.words || 0), 0))}${S.project.goalWords ? ' / ' + fmt(S.project.goalWords) : ''}`; };
   const ta = h('textarea', { class: 'editor', placeholder: 'Begin here. Put *asterisks* around words for italics.', spellcheck: true, autocapitalize: 'sentences', 'aria-label': 'Scene text', value: s.draft || '' });
   const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.max(ta.scrollHeight + 4, innerHeight * 0.55) + 'px'; };
-  const typewriter = () => { if (!document.body.classList.contains('focus') || store.get('ws.typewriter', '1') !== '1') return; const y = ta.getBoundingClientRect().top + caretTop(ta); const want = innerHeight * 0.42; if (Math.abs(y - want) > 24) scrollBy({ top: y - want, behavior: 'smooth' }); };
+  const typewriter = () => { if (!document.body.classList.contains('focus') || store.get('ws.typewriter', '1') !== '1') return; const y = ta.getBoundingClientRect().top + caretTop(ta); const want = (window.visualViewport?.offsetTop || 0) + (window.visualViewport?.height || innerHeight) * 0.42; if (Math.abs(y - want) > 24) scrollBy({ top: y - want, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); };
   ta.addEventListener('input', () => {
     const prev = s.words || 0;
     s.draft = ta.value; s.words = wordCount(ta.value);
@@ -69,7 +69,7 @@ function editor(s, scenes, sprintMin) {
   const nav = (d) => { const t = scenes[idx + d]; if (t) go('write/' + t.id); };
 
   // ----- sprint -----
-  const sprintEl = h('button', { class: 'btn sm', type: 'button', title: 'Timed sprint', onClick: () => sprintMenu() });
+  const sprintEl = h('button', { class: 'btn sm', type: 'button', title: 'Timed sprint', 'aria-label': 'Timed sprint', onClick: () => sprintMenu() });
   function paintSprint() {
     if (!sprint || sprint.sceneId !== s.id) { sprintEl.replaceChildren(icon('timer', 16), h('span', { class: 'lbl' }, 'Sprint')); sprintEl.classList.remove('live'); return; }
     const left = Math.max(0, sprint.end - Date.now());
@@ -118,7 +118,7 @@ function editor(s, scenes, sprintMin) {
       h('button', { class: 'btn sm', type: 'button', title: 'Reference panel', 'aria-label': 'Panel', onClick: () => { open = open ? '' : store.get('ws.lastpanel', 'plan'); paintPanel(); } }, icon('split', 18), h('span', { class: 'lbl' }, 'Panel'))));
   panel.addEventListener('click', () => { if (open) store.set('ws.lastpanel', open); });
   const main = h('div', { class: 'writer-main' }, bar, h('div', { class: 'sheet' }, h('div', { class: 'hide-focus' }, title, h('div', { class: 'row counts' }, count, bookCount)), ta),
-    h('div', { class: 'focus-bar' }, h('span', { class: 'num' }, count.cloneNode(true)), btn('Typewriter scroll', (e) => { const on = store.get('ws.typewriter', '1') !== '1'; store.set('ws.typewriter', on ? '1' : '0'); e.currentTarget.classList.toggle('on', on); }, `sm ghost ${store.get('ws.typewriter', '1') === '1' ? 'on' : ''}`), btn('Leave focus', () => document.body.classList.remove('focus'), 'sm')));
+    h('div', { class: 'focus-bar' }, h('span', { class: 'num' }, count.cloneNode(true)), btn('Typewriter', (e) => { const on = store.get('ws.typewriter', '1') !== '1'; store.set('ws.typewriter', on ? '1' : '0'); e.currentTarget.classList.toggle('on', on); }, `sm ghost ${store.get('ws.typewriter', '1') === '1' ? 'on' : ''}`), btn('Leave focus', () => document.body.classList.remove('focus'), 'sm')));
   // keep the focus-mode counter live
   const focusCount = main.querySelector('.focus-bar .num');
   ta.addEventListener('input', () => { focusCount.textContent = count.textContent; });
