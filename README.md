@@ -40,6 +40,10 @@ Defaults are `anujjha1989@anujrpi.local`, port 3080. Override with `PI_HOST`, `P
 
 The app uses relative paths, so it works at the root or under a sub-path.
 
+## iPhone and iPad app
+
+A native shell lives in `ios/`. See `ios/README.md`; `./ios/scripts/install.sh` builds and installs it on a connected device.
+
 ## Settings worth knowing
 
 - **Feedback from Claude**: paste your own Anthropic API key in Settings. It is stored in `data/secrets.json` on the Pi (mode 600) and is never sent back to the browser. Nothing is sent to Anthropic unless you press "Get notes" on a scene.
