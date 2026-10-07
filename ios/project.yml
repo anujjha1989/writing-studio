@@ -9,19 +9,32 @@ settings:
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
+    # Set by ios/scripts/install.sh from your Xcode account; empty for simulator builds.
+    DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
 targets:
   WritingStudio:
     type: application
     platform: iOS
     sources: [WritingStudio]
+    info:
+      path: WritingStudio/Info.plist
+      properties:
+        CFBundleDisplayName: Writing Studio
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: { UIColorName: LaunchCloth }
+        UIApplicationSupportsIndirectInputEvents: true
+        # The page header is always dark cloth, so the clock and battery are drawn light.
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIViewControllerBasedStatusBarAppearance: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSLocalNetworkUsageDescription: Connect to your Writing Studio server on your home network.
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity: { NSAllowsLocalNetworking: true }
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.anujjha.writingstudio
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: Writing Studio
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
-        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Connect to your Writing Studio server on your home network.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
   WritingStudioTests:

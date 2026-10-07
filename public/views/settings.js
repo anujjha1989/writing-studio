@@ -73,6 +73,10 @@ export async function render() {
       ...recovered.map((item) => h('div', { class: 'rowitem static' }, h('span', { class: 'grow' }, item.title, h('small', {}, when(item.created))), btn('Restore scene', async () => { try { await req('POST', 'api/trash/' + encodeURIComponent(item.id)); await openProject(S.project.id); toast('Scene and versions restored.'); rerender(); } catch (e) { toast(e.message); } }, 'sm'))),
       !recovered.length && h('p', { class: 'muted small' }, 'No deleted scenes in the open book.')),
 
+    window.webkit?.messageHandlers?.studio ? h('section', {}, h('h2', {}, 'iPhone and iPad app'),
+      h('p', { class: 'muted' }, 'This app opens your Writing Studio from the address in its connection settings. You can also reach them from any screen by holding two fingers still for a second.'),
+      h('div', { class: 'row' }, btn('Connection settings', () => window.webkit.messageHandlers.studio.postMessage('settings'), '', 'gear'))) : null,
+
     h('section', {}, h('h2', {}, 'Working away from home'),
       h('p', { class: 'muted' }, isSecureContext ? ('serviceWorker' in navigator ? 'This address is secure, so the app also opens with no connection. Edits made offline are kept on this device and sent when the Pi is reachable again.' : 'This browser does not support opening the app offline.') : 'On this plain home address the app needs the Pi to open. If the connection drops while you write, edits are kept on this device and sent when it returns. Opening the app through a secure (https) address adds full offline use.'),
       store.get('ws.outbox', '') ? h('p', { class: 'form-error' }, 'Some edits on this device are still waiting to be sent to the Pi.') : null),
