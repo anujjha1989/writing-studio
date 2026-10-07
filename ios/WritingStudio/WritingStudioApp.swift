@@ -30,7 +30,7 @@ struct StudioView: View {
             }
         }
         .sheet(isPresented: $browser.showSettings) { ConnectionSettings(browser: browser) }
-        .sheet(item: $browser.shareItem) { item in ShareSheet(items: [item.url]) }
+        .sheet(item: $browser.shareItem, onDismiss: browser.finishSharing) { item in ShareSheet(items: [item.url]) }
         .alert("Export failed", isPresented: Binding(get: { browser.exportError != nil }, set: { if !$0 { browser.exportError = nil } })) {
             Button("OK") { browser.exportError = nil }
         } message: { Text(browser.exportError ?? "") }

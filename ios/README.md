@@ -10,6 +10,8 @@ A small native shell around the Writing Studio web app. The page fills the whole
 
 The script picks your team from Xcode (a paid team is preferred), builds, signs and installs. Set `DEVELOPMENT_TEAM` or `DEVICE` to override. Bundle ID: `com.anujjha.writingstudio`. Needs Xcode and XcodeGen (`brew install xcodegen`).
 
+It uses an existing signing profile first, then requests a provisioning refresh if needed. If Xcode reports "No Accounts" even though you are signed in, open `ios/WritingStudio.xcodeproj`, select Signing & Capabilities and your team, and let Xcode prepare the profile before retrying. `ios/build/install-local.log` preserves the first build failure when a refresh is attempted.
+
 ## Using it
 
 - It opens `https://anujrpi.tail549492.ts.net/writing/`. Sign in on the page as you do in Safari.

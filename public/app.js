@@ -1,4 +1,5 @@
 import { h, $, S, icon, openProject, loadProjects, flush, on, req, btn, field, all, orderedScenes, applyCloth, toast, AuthError, restoreOutbox } from './lib.js';
+import './viewport.js';
 
 // [route, icon, label, group]
 const NAV = [
@@ -32,7 +33,7 @@ async function route(keepScroll) {
   let [section = '', ...rest] = parts();
   section = ALIAS[section] || section;
   closeDrawer();
-  if (section !== 'write') document.body.classList.remove('focus', 'writing');
+  if (!keepScroll || section !== 'write' || !rest[0]) document.body.classList.remove('focus', 'writing');
   const y = scrollY;
   try {
     if (!S.ready) {
