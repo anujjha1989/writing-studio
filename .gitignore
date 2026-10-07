@@ -4,3 +4,8 @@ node_modules/
 *.db
 *.db-wal
 *.db-shm
+
+# iOS project is reproducibly generated from ios/project.yml.
+ios/*.xcodeproj/
+ios/build/
+ios/WritingStudio/Assets.xcassets/AppIcon.appiconset/icon-1024.png
