@@ -1,5 +1,9 @@
 // Writing Studio server: zero dependencies. Node >= 22.13 (built-in node:sqlite).
 import http from 'node:http';
+import { storyExport } from '../public/academy-tools.js';
+import { CoachQuotes, coachPayload, requestCoaching } from './training-coach.js';
+const coachQuotes = new CoachQuotes();
+let coachBusy = false;
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -284,6 +288,56 @@ async function api(req, res, url) {
     }
     if (a === 'backup' && M === 'POST') return send(res, 200, { ok: true, file: path.basename(runBackup()) });
 
+    if (a === 'academy-export' && M === 'POST') {
+      const body = JSON.parse(await readBody(req, 10000));
+      const saved = q.one.get(body.builderId), book = q.one.get(body.projectId);
+      if (!saved || saved.type !== 'training' || row(saved).kind !== 'builder' || !book || book.type !== 'project') return send(res, 400, { error: 'Save a workbook and open a book before exporting.' });
+      const builder = row(saved), project = row(book);
+      if (builder.book && builder.book !== body.projectId) return send(res, 400, { error: 'This workbook belongs to another book.' });
+      const existing = q.byProjectOrGlobal.all(body.projectId).map(row);
+      const plan = storyExport(builder, body.projectId, existing);
+      if (plan.alreadyExported || builder.exported) return send(res, 409, { error: 'This workbook was already exported. Existing scene cards and the dossier were left intact.' });
+      if (!plan.scenes.length || plan.scenes.length > 200) return send(res, 400, { error: 'Add between 1 and 200 scene-plan lines.' });
+      const scenes = existing.filter(r => r.type === 'scene');
+      const offset = scenes.reduce((n,r) => Math.max(n,r.order || 0),0);
+      const now = Date.now(), added = plan.scenes.map(s => ({ ...s, id: crypto.randomUUID(), created: now, order: offset+s.order, act: scenes.length ? Math.min(s.act,(project.acts?.length || 3)-1) : s.act }));
+      if (plan.character) added.push({ ...plan.character, id: crypto.randomUUID(), created: now });
+      project.academyWorkbook = { ...builder.fields, genre: builder.genre, structure: builder.structure };
+      if (!scenes.length) project.acts = plan.acts;
+      builder.exported = { at: now, project: body.projectId };
+      db.exec('BEGIN');
+      try {
+        for (const r of [...added, project, builder]) q.upsert.run(r.id,r.type,r.project,JSON.stringify(r),now);
+        db.exec('COMMIT');
+      } catch(e) { db.exec('ROLLBACK'); throw e; }
+      return send(res, 200, { records: [...added,project,builder].map(r => ({...r,updated_at:now})) });
+    }
+    if (a === 'training' && M === 'POST') {
+      if (!secrets.apiKey) return send(res, 400, { error: 'Add your Anthropic API key in Settings first. Lessons and self-review remain free.' });
+      if (b === 'quote') {
+        try {
+          const body = JSON.parse(await readBody(req, 150000));
+          const attempt = q.one.get(body.attemptId);
+          if (!attempt || attempt.type !== 'training' || row(attempt).kind !== 'attempt') return send(res, 400, { error: 'Save the practice attempt before requesting coaching.' });
+          return send(res, 200, coachQuotes.issue({ ...coachPayload(body), attemptId: body.attemptId }));
+        } catch (e) { return send(res, 400, { error: e.message }); }
+      }
+      if (b === 'feedback') {
+        if (coachBusy) return send(res, 409, { error: 'A coach request is already running. No extra API call was made.' });
+        let quote;
+        try { const body = JSON.parse(await readBody(req, 10000)); quote = coachQuotes.take(body.quoteId); }
+        catch (e) { return send(res, 400, { error: e.message }); }
+        coachBusy = true;
+        try {
+          const result = await requestCoaching(quote, secrets.apiKey);
+          const record = { id: crypto.randomUUID(), type: 'training', project: '', kind: 'coach-result', attemptId: quote.attemptId, ...result, draft: quote.draft, previous: quote.previous, at: Date.now(), created: Date.now() };
+          q.upsert.run(record.id, 'training', '', JSON.stringify(record), record.at);
+          return send(res, 200, record);
+        } catch (e) { return send(res, 502, { error: `Coaching could not finish: ${e.message}. No automatic retry was made; if the provider received the request, it may have charged for tokens.` }); }
+        finally { coachBusy = false; }
+      }
+      return send(res, 404, { error: 'Training endpoint not found.' });
+    }
     if (a === 'ai' && M === 'POST') {
       if (!secrets.apiKey) return send(res, 400, { error: 'Add your Anthropic API key in Settings first.' });
       const { system = '', prompt = '', max_tokens = 1500 } = JSON.parse(await readBody(req, 4 * 1024 * 1024));

@@ -84,6 +84,27 @@ try {
   const st = await j('/api/settings', { method: 'PUT', body: JSON.stringify({ apiKey: 'test-value' }) });
   assert.equal(st.hasKey, true); assert.ok(!JSON.stringify(st).includes('test-value'));
 
+  // Training stays global, and free workbook export is atomic and idempotent.
+  await put('training-attempt', { type: 'training', project: '', kind: 'attempt', title: 'Conflict', text: 'A practice draft.' });
+  assert.ok((await j('/api/records?project=p1')).some(r => r.id === 'training-attempt'));
+  const quoteBody = { attemptId: 'training-attempt', draft: 'A practice draft.', previous: '', task: 'Build conflict.', reflection: '', checks: ['Clear goal'] };
+  const estimate = await j('/api/training/quote', { method: 'POST', body: JSON.stringify(quoteBody) });
+  assert.ok(estimate.allowanceUSD > 0);
+  assert.equal(estimate.model, 'claude-sonnet-5-5');
+  assert.equal((await f('/api/training/quote', { method: 'POST', body: JSON.stringify({...quoteBody, draft: ''}) })).status, 400);
+  assert.equal((await f('/api/training/feedback', { method: 'POST', body: JSON.stringify({quoteId:'unapproved'}) })).status, 400);
+  // No real feedback request is made in tests.
+  await put('workbook', { type:'training',project:'',kind:'builder',book:'p1',structure:'three',fields:{beats:'[1] First | get key | refusal | leave\n[2] Second | find proof | rival | bargain', character:'Mira fears betrayal'} });
+  const exportBody = {builderId:'workbook',projectId:'p1'};
+  const planned = await j('/api/academy-export', {method:'POST',body:JSON.stringify(exportBody)});
+  assert.equal(planned.records.filter(r=>r.type==='scene').length,2);
+  assert.equal(planned.records.find(r=>r.type==='scene' && r.title==='Second').act,1);
+  assert.equal(planned.records.find(r=>r.type==='char').name,'Training character dossier');
+  assert.equal((await f('/api/academy-export',{method:'POST',body:JSON.stringify(exportBody)})).status,409);
+  assert.equal((await j('/api/records?type=scene&project=p1')).filter(r=>r.academySource).length,2);
+  await put('empty-workbook',{type:'training',project:'',kind:'builder',book:'p1',fields:{}});
+  assert.equal((await f('/api/academy-export',{method:'POST',body:JSON.stringify({...exportBody,builderId:'empty-workbook'})})).status,400);
+
   // passphrase locks the API until login
   const set = await f('/api/auth/set', { method: 'POST', body: JSON.stringify({ next: 'open sesame' }) });
   assert.equal(set.status, 200);

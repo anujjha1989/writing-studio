@@ -35,7 +35,7 @@ export const emit = (name, detail) => document.dispatchEvent(new CustomEvent(nam
 export const on = (name, fn) => document.addEventListener(name, (e) => fn(e.detail));
 
 // ---------- store ----------
-const GLOBAL_TYPES = new Set(['project', 'practice', 'authnote']);
+const GLOBAL_TYPES = new Set(['project', 'practice', 'authnote', 'training']);
 export const S = { project: null, recs: new Map(), pending: new Map(), ready: false, offline: false, syncAt: 0, logs: [] };
 function setStatus(state, text) { const e = document.getElementById('savestatus'); if (e) { e.textContent = text; e.dataset.state = state; } }
 
