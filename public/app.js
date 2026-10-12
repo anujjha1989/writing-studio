@@ -4,17 +4,17 @@ import './viewport.js';
 // [route, icon, label, group]
 const NAV = [
   ['', 'desk', 'Desk', 0], ['story', 'board', 'Storyboard', 0], ['write', 'pen', 'Write', 0], ['ms', 'book', 'Manuscript', 0], ['bible', 'people', 'Story bible', 0], ['track', 'chart', 'Tracker', 0],
-  ['plots', 'compass', 'Plot library', 1], ['styles', 'quill', 'Author styles', 1], ['craft', 'tools', 'Craft toolkit', 1], ['nonfic', 'library', 'Non-fiction', 1],
+  ['training', 'tools', 'Training Studio', 1], ['plots', 'compass', 'Plot library', 1], ['styles', 'quill', 'Author styles', 1], ['craft', 'tools', 'Craft toolkit', 1], ['nonfic', 'library', 'Non-fiction', 1],
   ['settings', 'gear', 'Settings', 2],
 ];
 const BOTTOM = [['', 'desk', 'Desk'], ['story', 'board', 'Board'], ['write', 'pen', 'Write'], ['ms', 'book', 'Read'], ['menu', 'menu', 'More']];
 const ALIAS = { chars: 'bible', data: 'settings', manuscript: 'ms' };
-const NO_PROJECT_OK = ['', 'settings', 'plots', 'styles', 'craft'];
+const NO_PROJECT_OK = ['', 'settings', 'plots', 'styles', 'craft', 'training'];
 const loaders = {
   '': () => import('./views/home.js'), plots: () => import('./views/plots.js'), bible: () => import('./views/bible.js'),
   story: () => import('./views/story.js'), track: () => import('./views/track.js'), styles: () => import('./views/styles.js'),
   nonfic: () => import('./views/nonfic.js'), craft: () => import('./views/craft.js'), write: () => import('./views/write.js'),
-  ms: () => import('./views/manuscript.js'), settings: () => import('./views/settings.js'),
+  training: () => import('./views/training.js'), ms: () => import('./views/manuscript.js'), settings: () => import('./views/settings.js'),
 };
 
 const app = $('#app'), spine = $('#spine');
@@ -40,7 +40,7 @@ async function route(keepScroll) {
       const list = await loadProjects();
       let want = null; try { want = localStorage.getItem('ws.project'); } catch { /* private mode */ }
       const pick = list.find((p) => p.id === want) || list[0];
-      if (pick) await openProject(pick.id); else { const notes = await req('GET', 'api/records?type=authnote'); notes.forEach((r) => S.recs.set(r.id, r)); const practice = await req('GET', 'api/records?type=practice'); practice.forEach((r) => S.recs.set(r.id, r)); restoreOutbox(); S.ready = true; applyCloth(); }
+      if (pick) await openProject(pick.id); else { const notes = await req('GET', 'api/records?type=authnote'); notes.forEach((r) => S.recs.set(r.id, r)); const training = await req('GET', 'api/records?type=training'); training.forEach((r) => S.recs.set(r.id, r)); const practice = await req('GET', 'api/records?type=practice'); practice.forEach((r) => S.recs.set(r.id, r)); restoreOutbox(); S.ready = true; applyCloth(); }
     }
     const mod = await (loaders[section] || loaders[''])();
     if (my !== seq) return;

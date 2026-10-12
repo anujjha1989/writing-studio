@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {COURSES,LESSONS} from '../public/content/academy.js';
+import {GENRES,THEMES,TROPES,STRUCTURES} from '../public/content/storycraft.js';
+import {nextPractice,practiceEvidence,storyExport} from '../public/academy-tools.js';
+import {CoachQuotes,coachPayload,requestCoaching,COACH_MODEL} from '../server/training-coach.js';
+assert.equal(COURSES.length,14);
+assert.equal(new Set(LESSONS.map(l=>l.id)).size,28);
+for(const l of LESSONS){for(const k of ['teach','example','weak','diagnosis','exercise','transfer'])assert.ok(l[k]?.length>40,`${l.id} ${k}`);assert.ok(l.checks.length>=3);}
+assert.equal(GENRES.length,10);assert.equal(THEMES.length,12);assert.equal(TROPES.length,16);assert.equal(STRUCTURES.length,4);
+const completed={kind:'attempt',course:'conflict',lesson:'conflict-1',complete:true,versions:[{},{}]};
+assert.equal(nextPractice([completed],['conflict']).id,'conflict-2');
+assert.deepEqual(practiceEvidence([completed],'conflict'),{attempts:1,revisions:1,completed:1});
+const builder={id:'test',fields:{beats:'Ask for the key\n\nMeet the sister',character:'Mira fears betrayal'}};
+const exp=storyExport(builder,'book');assert.equal(exp.scenes.length,2);assert.ok(exp.scenes.every(s=>s.draft==='' && s.status==='outlined'));assert.equal(exp.character.project,'book');assert.equal(storyExport(builder,'book',exp.scenes).alreadyExported,true);
+const body={draft:'A practice passage.',task:'Make the conflict clear.',checks:['Clear goal'],previous:'',reflection:''};
+assert.throws(()=>coachPayload({...body,draft:''}),/Invalid draft/);assert.throws(()=>coachPayload({...body,checks:[]}),/checklist/);assert.throws(()=>coachPayload({...body,draft:'x'.repeat(24001)}),/Invalid draft/);
+let now=1;const quotes=new CoachQuotes({now:()=>now});const q=quotes.issue(coachPayload(body));assert.ok(q.allowanceUSD>0);const consumed=quotes.take(q.id);assert.throws(()=>quotes.take(q.id),/already used/);const stale=quotes.issue(coachPayload(body));now+=600001;assert.throws(()=>quotes.take(stale.id),/expired/);
+let calls=0;const result=await requestCoaching(consumed,'fake-key',async(url,options)=>{calls++;const payload=JSON.parse(options.body);assert.equal(payload.model,COACH_MODEL);assert.equal(payload.max_tokens,1500);assert.match(payload.system,/Do not write replacement prose/);return {ok:true,json:async()=>({model:COACH_MODEL,content:[{type:'text',text:'The goal is clear. Give the opposition a motive.'}],usage:{input_tokens:100,output_tokens:200},stop_reason:'end_turn'})};});
+assert.equal(calls,1);assert.equal(result.costUSD,.0022);
+await assert.rejects(requestCoaching(consumed,'fake-key',async()=>({ok:false,status:429,json:async()=>({error:{message:'rate limited'}})})),/rate limited/);
+console.log('academy content, progression, exports and paid-coaching approval tests passed (no paid API calls)');
