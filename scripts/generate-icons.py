@@ -16,8 +16,9 @@ master.save(public / 'favicon.ico', sizes=[(16,16), (32,32), (48,48)])
 master.save(public / 'icon.webp', quality=95)
 master.save(root / 'assets/app-icon.icns')
 # Preserve the existing SVG URL. The supplied artwork is raster, not vector art.
+# Embed the 192px rendering so the wrapper stays small (it is only a fallback URL).
 buffer = io.BytesIO()
-master.save(buffer, format='PNG', optimize=True)
+source.resize((192, 192), Image.Resampling.LANCZOS).save(buffer, format='PNG', optimize=True)
 encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
 (public / 'icon.svg').write_text(f'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><image width="1024" height="1024" href="data:image/png;base64,{encoded}"/></svg>\n')
 print('Generated web, home-screen, iOS and macOS icons from assets/app-icon.png')

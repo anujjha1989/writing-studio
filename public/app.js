@@ -4,7 +4,7 @@ import './viewport.js';
 // [route, icon, label, group]
 const NAV = [
   ['', 'desk', 'Desk', 0], ['story', 'board', 'Storyboard', 0], ['write', 'pen', 'Write', 0], ['ms', 'book', 'Manuscript', 0], ['bible', 'people', 'Story bible', 0], ['track', 'chart', 'Tracker', 0],
-  ['training', 'tools', 'Training Studio', 1], ['plots', 'compass', 'Plot library', 1], ['styles', 'quill', 'Author styles', 1], ['craft', 'tools', 'Craft toolkit', 1], ['nonfic', 'library', 'Non-fiction', 1],
+  ['training', 'flag', 'Training Studio', 1], ['plots', 'compass', 'Plot library', 1], ['styles', 'quill', 'Author styles', 1], ['craft', 'tools', 'Craft toolkit', 1], ['nonfic', 'library', 'Non-fiction', 1],
   ['settings', 'gear', 'Settings', 2],
 ];
 const BOTTOM = [['', 'desk', 'Desk'], ['story', 'board', 'Board'], ['write', 'pen', 'Write'], ['ms', 'book', 'Read'], ['menu', 'menu', 'More']];
