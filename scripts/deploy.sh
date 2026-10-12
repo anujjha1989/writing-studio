@@ -27,6 +27,7 @@ rm -rf dist && mkdir -p dist/pkg
 cp -R server public package.json dist/pkg/
 find dist/pkg -name '.DS_Store' -delete
 echo "$STAMP" > dist/pkg/VERSION
+git rev-parse HEAD > dist/pkg/SOURCE_COMMIT
 COPYFILE_DISABLE=1 tar --no-xattrs -C dist/pkg -czf "dist/writing-studio-$STAMP.tgz" .   # COPYFILE_DISABLE: no macOS ._ files
 
 echo "==> Checking the Pi ($PI_USER@$PI_HOST)"
