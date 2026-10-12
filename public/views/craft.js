@@ -8,6 +8,7 @@ export async function render([id]) {
   if (id && CRAFT_GUIDES.some((g) => g.id === id)) { tab = 'guides'; openGuide = id; }
   const root = h('div', { class: 'stack-lg narrow' }, pageHead('Craft toolkit', 'Short, practical guides, revision checklists and prompts.'),
     tabs([['guides', 'Guides'], ['checklists', 'Revision checklists'], ['prompts', 'Prompts']], tab, (t) => { tab = t; rerender(); }));
+  root.append(h('a', {class:'btn primary',href:'#/training'}, 'Open Training Studio'));
   root.append(({ guides, checklists, prompts })[tab]());
   return root;
 }
