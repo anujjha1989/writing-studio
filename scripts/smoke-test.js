@@ -105,6 +105,15 @@ try {
   await put('empty-workbook',{type:'training',project:'',kind:'builder',book:'p1',fields:{}});
   assert.equal((await f('/api/academy-export',{method:'POST',body:JSON.stringify({...exportBody,builderId:'empty-workbook'})})).status,400);
 
+  // Structured scene fields survive the same atomic export used by the workbook UI.
+  await put('structured-workbook',{type:'training',project:'',kind:'builder',book:'p1',structure:'three',fields:{beats:'Old note must not become a second card'},scenes:[{id:'structured-1',act:2,title:'Final choice',goal:'Keep | literal punctuation',conflict:'First line\nSecond line',outcome:'A costly answer'}]});
+  const structured = await j('/api/academy-export',{method:'POST',body:JSON.stringify({...exportBody,builderId:'structured-workbook'})});
+  const structuredScenes = structured.records.filter(r=>r.type==='scene');
+  assert.equal(structuredScenes.length,1);
+  assert.equal(structuredScenes[0].act,2);
+  assert.equal(structuredScenes[0].goal,'Keep | literal punctuation');
+  assert.equal(structuredScenes[0].conflict,'First line\nSecond line');
+
   // passphrase locks the API until login
   const set = await f('/api/auth/set', { method: 'POST', body: JSON.stringify({ next: 'open sesame' }) });
   assert.equal(set.status, 200);

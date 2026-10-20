@@ -7,7 +7,7 @@ const NAV = [
   ['training', 'flag', 'Training Studio', 1], ['plots', 'compass', 'Plot library', 1], ['styles', 'quill', 'Author styles', 1], ['craft', 'tools', 'Craft toolkit', 1], ['nonfic', 'library', 'Non-fiction', 1],
   ['settings', 'gear', 'Settings', 2],
 ];
-const BOTTOM = [['', 'desk', 'Desk'], ['story', 'board', 'Board'], ['write', 'pen', 'Write'], ['ms', 'book', 'Read'], ['menu', 'menu', 'More']];
+const BOTTOM = [['training', 'flag', 'Learn'], ['training/notebook', 'pen', 'Practice'], ['training/library', 'library', 'Library'], ['', 'book', 'Books'], ['menu', 'menu', 'More']];
 const ALIAS = { chars: 'bible', data: 'settings', manuscript: 'ms' };
 const NO_PROJECT_OK = ['', 'settings', 'plots', 'styles', 'craft', 'training'];
 const loaders = {
@@ -62,10 +62,10 @@ async function route(keepScroll) {
 
 // ---------- chrome ----------
 function paintChrome(section) {
-  $('#brand').textContent = S.project ? S.project.title : 'Writing Studio';
-  document.title = S.project ? `${S.project.title} · Writing Studio` : 'Writing Studio';
-  document.querySelectorAll('#spine a[data-s], #bottombar a[data-s]').forEach((a) => { const hit = a.dataset.s === section; a.classList.toggle('on', hit); hit ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'); });
-  $('#spine .spine-title').textContent = S.project ? S.project.title : 'Writing Studio';
+  $('#brand').textContent = S.project ? S.project.title || 'Untitled book' : 'Writing Studio';
+  document.title = S.project ? `${S.project.title || 'Untitled book'} · Writing Studio` : 'Writing Studio';
+  document.querySelectorAll('#spine a[data-s], #bottombar a[data-s]').forEach((a) => { const path = parts().join('/'); const active = section === 'training' ? (path.startsWith('training/notebook') || path.startsWith('training/attempt') ? 'training/notebook' : path.startsWith('training/library') || path.startsWith('training/labs') ? 'training/library' : 'training') : ['', 'story', 'write', 'ms', 'bible', 'track'].includes(section) ? '' : null; const hit = a.closest('#bottombar') ? a.dataset.s === active : a.dataset.s === section; a.classList.toggle('on', hit); hit ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'); });
+  $('#spine .spine-title').textContent = S.project ? S.project.title || 'Untitled book' : 'Writing Studio';
   $('#spine .spine-sub').textContent = S.project ? (S.project.author || (S.project.kind === 'nonfiction' ? 'Non-fiction' : 'A novel in progress')) : 'No book open yet';
 }
 function buildChrome() {
@@ -165,5 +165,6 @@ on('ws:local', () => { if (!/TEXTAREA|INPUT/.test(document.activeElement?.tagNam
 
 addEventListener('hashchange', () => { flush(); route(); });
 buildChrome();
+if (!location.hash) history.replaceState(null, '', '#/training');
 route();
 if ('serviceWorker' in navigator && isSecureContext) navigator.serviceWorker.register('sw.js').catch(() => {});

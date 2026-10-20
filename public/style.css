@@ -7,7 +7,7 @@
   --paper:#f1f2ee;--page:#fbfbf8;--sunk:#e7e9e3;--ink:#1a1e1c;--ink2:#58605c;--rule:#d7dad3;--rule2:#bfc4bb;
   --cloth:#17453f;--on-cloth:#f2ead6;--foil:#d9ae52;--accent:var(--cloth);--on-accent:#f6f1e2;
   --ok:#2f8a57;--bad:#b3372b;--warn:#b07a12;
-  --serif:"Literata","Iowan Old Style","Palatino Linotype",Georgia,serif;--sans:"Instrument Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --serif:"Literata","Iowan Old Style","Palatino Linotype",Georgia,serif;--sans:-apple-system,BlinkMacSystemFont,"Instrument Sans","Segoe UI",Roboto,sans-serif;
   --spine:236px;--top:50px;--bot:60px;--keyboard-inset:0px;--viewport-top:0px;--visible-height:100dvh;--shadow:0 18px 50px -12px rgba(20,28,24,.35),0 2px 6px rgba(20,28,24,.12);
   color-scheme:light;
 }
@@ -17,7 +17,7 @@
 
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-padding-top:calc(70px + env(safe-area-inset-top))}
-body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 var(--sans);-webkit-font-smoothing:antialiased;padding-top:calc(var(--top) + env(safe-area-inset-top));padding-bottom:calc(var(--bot) + env(safe-area-inset-bottom))}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 var(--sans);-webkit-font-smoothing:antialiased;padding-top:calc(var(--top) + env(safe-area-inset-top));padding-bottom:calc(var(--bot) + 24px + env(safe-area-inset-bottom))}
 a{color:var(--accent);text-underline-offset:3px}
 h1,h2{font-family:var(--serif);font-weight:500;letter-spacing:-.012em;margin:0;text-wrap:balance}
 h1{font-size:clamp(1.75rem,1.3rem + 1.6vw,2.4rem);line-height:1.1}
@@ -56,9 +56,12 @@ body.drawer::after{content:"";position:fixed;inset:0;background:#0007;z-index:35
 #top .btn{color:inherit}
 #savestatus{font-size:.74rem;opacity:.75;white-space:nowrap}
 #savestatus[data-state=off]{color:#ffd9a0;opacity:1}
-#bottombar{position:fixed;bottom:0;left:0;right:0;z-index:30;height:calc(var(--bot) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--page);border-top:1px solid var(--rule);display:flex}
-#bottombar a{flex:1;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;font-size:.68rem;font-weight:500;text-decoration:none;color:var(--ink2)}
-#bottombar a.on{color:var(--accent)}
+#bottombar{position:fixed;bottom:max(12px,env(safe-area-inset-bottom));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));z-index:30;height:64px;padding:5px;background:var(--page);border-radius:34px;box-shadow:0 5px 24px #0002;display:flex}
+#bottombar a{flex:1;min-width:0;min-height:44px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;border-radius:28px;font-size:12px;font-weight:500;text-decoration:none;color:var(--ink2)}
+#bottombar a.on{color:var(--accent);background:color-mix(in srgb,var(--accent),var(--page) 91%)}
+@supports(backdrop-filter:blur(20px)){#bottombar{background:color-mix(in srgb,var(--page),transparent 12%);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%)}}
+@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){#bottombar{background:var(--page);backdrop-filter:none;-webkit-backdrop-filter:none;outline:1px solid var(--rule2)}}
+
 main{padding:22px max(18px,env(safe-area-inset-right)) 40px max(18px,env(safe-area-inset-left));max-width:1120px}
 
 @media(min-width:960px){
@@ -307,13 +310,36 @@ body.keyboard-open .login .cover{display:none}
 .gauge{position:relative;height:6px;min-width:90px;background:var(--sunk);border-radius:99px}.gauge i{position:absolute;top:-4px;width:3px;height:14px;border-radius:2px;background:var(--accent)}.gauge b{position:absolute;top:-3px;width:10px;height:10px;margin:1px 0 0 -4px;border-radius:50%;border:2px solid var(--warn);background:var(--page)}
 .reading{font:400 1.12rem/1.6 var(--serif);max-width:60ch}
 
-/* Training uses the same source-owned controls and theme tokens as the writing desk. */
-.academy-courses{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:24px}
-.academy-course{border-top:2px solid var(--accent);padding-top:16px;min-width:0}
-.academy-lesson-link{display:block;padding:12px 0;border-bottom:1px solid var(--rule);text-decoration:none}
-.academy-draft{font-family:var(--serif);line-height:1.7;min-height:260px}
-.academy-version{padding:12px 0;border-bottom:1px solid var(--rule)}
-.academy-version .btn{margin-right:8px}
-.academy-compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;border-top:1px solid var(--rule);padding:12px 0}
+/* Learning controls recede; lesson content keeps the book typography. */
+main[data-section=training]{font-size:17px}
+main[data-section=training] .page-head h1{font-family:var(--sans);font-size:clamp(1.75rem,1.35rem + 1vw,2.125rem);font-weight:700;letter-spacing:-.025em}
+main[data-section=training] .lede{font-size:1rem;line-height:1.5}
+main[data-section=training] .btn{min-height:44px;border-radius:24px;border-color:transparent;background:var(--sunk);white-space:normal;text-align:center}
+main[data-section=training] .btn.primary{background:var(--accent);color:var(--on-accent)}
+main[data-section=training] .btn.ghost{background:transparent;color:var(--accent)}
+main[data-section=training] .btn:active{opacity:.8}
+main[data-section=training] small,main[data-section=training] .small{font-size:.875rem}
+.academy-back{display:inline-flex;align-items:center;min-height:44px;padding:0 8px 0 0;text-decoration:none;font-size:1rem}
+.learning-home{max-width:860px}.learning-continue{padding:24px;background:var(--page);border-radius:20px}
+.learning-continue h2{font-size:1.65rem;margin:0}.learning-continue .btn{align-self:start;width:fit-content}
+.eyebrow{font-size:.875rem;font-weight:600;color:var(--ink2);margin:0}
+.learning-group{border-radius:16px;background:var(--page);padding:0 16px}
+.learning-row{display:flex;align-items:center;gap:16px;min-height:64px;padding:14px 0;color:var(--ink);text-decoration:none}
+.learning-row + .learning-row,.learning-course + .learning-course{border-top:1px solid var(--rule)}
+.learning-row b{display:block;font-size:1rem;font-weight:600}.learning-row small{display:block;margin-top:3px;color:var(--ink2)}
+.learning-row>span:last-child:not(.grow){font-size:1.5rem;color:var(--ink2)}
+.learning-row:active{opacity:.7}.learning-course summary{cursor:pointer;min-height:72px;padding:16px 0;list-style-position:inside}
+.learning-course summary .grow{display:inline-block;vertical-align:middle;max-width:calc(100% - 24px)}
+.learning-course summary small{display:block;color:var(--ink2);font-size:.875rem;margin-top:4px}
+.learning-course-body{padding:0 0 16px}.learning-course-body .learning-row{border-top:1px solid var(--rule)}
+.learning-steps{display:flex;gap:4px;overflow-x:auto;scroll-padding:8px;padding:4px;background:var(--sunk);border-radius:16px;max-width:100%}
+.learning-steps button{display:flex;flex:1;gap:5px;align-items:center;justify-content:center;min-height:44px;min-width:70px;border:0;border-radius:12px;font:500 .875rem var(--sans);background:transparent;color:var(--ink2);padding:8px;cursor:pointer}
+.learning-steps button span{font-size:.75rem}.learning-steps .current{background:var(--page);color:var(--ink);font-weight:700}
+.learning-steps .current span{color:var(--accent)}.workbook-steps button{flex:none;min-width:92px}
+.learning-step-actions{display:flex;justify-content:flex-end;gap:12px;border-top:1px solid var(--rule);padding-top:20px}
+.learning-scene{padding:20px;background:var(--page);border-radius:16px;min-width:0}.learning-scene h2{font:600 1.1rem var(--sans)}
+.learning-empty{padding:24px 0}.learning-summary{display:grid;grid-template-columns:100px minmax(0,1fr);gap:12px}.learning-summary dt{color:var(--ink2)}.learning-summary dd{margin:0;overflow-wrap:anywhere}
+.academy-draft{font-family:var(--serif);line-height:1.7;min-height:260px}.academy-version{padding:12px 0;border-bottom:1px solid var(--rule)}
+.academy-version .btn{margin-right:8px}.academy-compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;border-top:1px solid var(--rule);padding:12px 0}
 .academy-prose{white-space:pre-wrap;overflow-wrap:anywhere}
-@media(max-width:600px){.academy-compare{grid-template-columns:1fr}}
+@media(max-width:600px){.academy-compare{grid-template-columns:1fr}.learning-continue{padding:20px}.learning-steps button{padding:8px 4px;gap:3px}.learning-steps button span{display:none}.learning-scene{padding:16px}main[data-section=training] .page-head{gap:12px}}

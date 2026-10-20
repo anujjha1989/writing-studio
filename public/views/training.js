@@ -2,7 +2,7 @@ import { h, S, all, get, create, put, btn, field, tabs, pageHead, toast, req, mo
 import { go } from '../app.js';
 import { COURSES, LESSONS } from '../content/academy.js';
 import { GENRES, THEMES, TROPES, STRUCTURES, BUILD_FIELDS } from '../content/storycraft.js';
-import { nextPractice, practiceEvidence, storyExport } from '../academy-tools.js';
+import { nextPractice, practiceEvidence, storyExport, workbookScenes } from '../academy-tools.js';
 import { AUTHORS } from './styles.js';
 import { diffText } from '../text.js';
 
@@ -11,17 +11,17 @@ const attempts=()=>all('training').filter(r=>r.kind==='attempt');
 const settings=()=>get('academy-plan') || {id:'academy-plan',type:'training',project:'',kind:'plan',priorities:[]};
 const section=(title,...body)=>h('section',{class:'stack'},h('h2',{},title),...body);
 const paras=text=>h('div',{class:'prose academy-prose'},String(text || '').split('\n').filter(Boolean).map(p=>h('p',{},p)));
-export async function render([page,id]) {
- if(page==='lesson') return lessonView(LESSONS.find(l=>l.id===id));
+export async function render([page,id,step]) {
+ if(page==='lesson') return lessonView(LESSONS.find(l=>l.id===id),step);
  if(page==='attempt') return attemptView(get(id));
  if(page==='labs') return labsView();
  if(page==='library') return libraryView();
- if(page==='builder') return builderView();
+ if(page==='builder') return builderView(id);
  if(page==='notebook') return notebookView();
  if(page==='plan') return planView();
  return overview();
 }
-function heading(title,sub) { return h('div',{class:'stack'},link('← Training Studio','', 'small'),pageHead(title,sub)); }
+function heading(title,sub) { return h('div',{class:'stack'},link('‹ Learn','', 'academy-back'),pageHead(title,sub)); }
 async function saveForAction(record) {
  await put(record,true);
  const deadline=Date.now()+12000;
@@ -36,24 +36,39 @@ function currentWorkbook() {
  if(!builder && book){builder=all('training').find(r=>r.kind==='builder' && !r.book && !r.exported);if(builder){builder.book=book;put(builder,true);}}
  return builder;
 }
-function overview() {
- const list=attempts(), next=nextPractice(list,settings().priorities);
- return h('div',{class:'stack-lg'},pageHead('Training Studio','Learn a technique, attempt it, review the evidence, revise, then try it in a new situation. Lessons and self-review need no paid AI.'),
- h('div',{class:'row'},link('Practice notebook','notebook'),link('Personal practice plan','plan'),link('Author technique labs','labs'),link('Genre, theme & trope library','library'),link('Build my story while I learn','builder','btn primary')),
- section('Your next practice',h('p',{},`${next.courseTitle}: ${next.title}`),link('Open lesson','lesson/'+next.id,'btn primary')),
- h('div',{class:'academy-courses'},COURSES.map(c=>{
- const evidence=practiceEvidence(list,c.id);
- return h('section',{class:'academy-course stack'},h('h2',{},c.title),h('p',{class:'muted'},c.description),h('p',{class:'small'},`${evidence.attempts} attempts · ${evidence.revisions} saved revisions · ${evidence.completed} self-reviewed completions`),c.lessons.map(l=>link(`${l.level}. ${l.title}`,'lesson/'+l.id,'academy-lesson-link')));
- })),h('p',{class:'muted small'},'Completion records practice, not mastery. Examples are original teaching examples, not passages copied from the selected authors.'));
+function learningRow(title,detail,path) {
+ return h('a',{href:'#/training/'+path,class:'learning-row'},h('span',{class:'grow'},h('b',{},title),detail?h('small',{},detail):null),h('span',{'aria-hidden':true},'›'));
 }
-function lessonView(l) {
- if(!l) return h('div',{},heading('Lesson not found'),link('Browse courses',''));
- return h('div',{class:'stack-lg narrow'},heading(l.title,`${l.courseTitle} · practice ${l.level}`),
- section('Learn',paras(l.teach)),section('Worked example',paras(l.example)),section('Diagnose a weak example',paras(l.weak),h('details',{class:'fold'},h('summary',{},'Reveal the diagnosis'),paras(l.diagnosis))),
- section('Your exercise',paras(l.exercise),btn('Start a saved attempt',()=>startAttempt(l),'primary')),
- section('Revision checklist',h('ul',{},l.checks.map(x=>h('li',{},x)))),section('Transfer the skill',paras(l.transfer),btn('Start a transfer attempt',()=>startAttempt(l,true))),
- l.build ? section('Use this in your story',h('p',{},'This lesson contributes to your story-building workbook. Use your own premise and move the useful results into its fields.'),link('Open story workbook','builder')) : null,
- section('Earlier attempts',attempts().filter(r=>r.lesson===l.id).map(r=>link(`${r.transfer?'Transfer':'Attempt'} · ${when(r.created)}`,'attempt/'+r.id,'academy-lesson-link'))));
+function overview() {
+ const list=attempts(),next=nextPractice(list,settings().priorities);
+ const unfinished=list.filter(r=>!r.complete).sort((a,b)=>(b.updated_at || b.created)-(a.updated_at || a.created))[0];
+ const visited=all('training').filter(r=>r.kind==='lesson-state').sort((a,b)=>b.visited-a.visited)[0];
+ const resume=unfinished?{title:unfinished.title,detail:'Your saved practice is ready to continue.',path:'attempt/'+unfinished.id}:visited?{title:LESSONS.find(l=>l.id===visited.lesson)?.title || next.title,detail:'Pick up where you left off.',path:'lesson/'+visited.lesson+'/'+visited.step}:{title:next.title,detail:next.courseTitle,path:'lesson/'+next.id};
+ const totalDone=new Set(list.filter(r=>r.complete).map(r=>r.lesson)).size;
+ return h('div',{class:'learning-home stack-lg'},pageHead('Learn','A little practice. A stronger story.'),
+ h('section',{class:'learning-continue stack'},h('p',{class:'eyebrow'},'Continue learning'),h('h2',{},resume.title),h('p',{class:'muted'},resume.detail),link('Continue',resume.path,'btn primary'),h('p',{class:'small muted'},'Lessons and self-review are free. AI coaching is optional.')),
+ h('div',{class:'learning-group'},learningRow('Practice plan',totalDone?`${totalDone} self-reviewed exercises · choose your next focus`:'Choose a skill to develop','plan'),learningRow('Story workbook','Turn your practice into a story plan','builder')),
+ section('Courses',h('p',{class:'muted'},'Choose a subject. Open a course to see its lessons.'),h('div',{class:'learning-group'},COURSES.map(c=>{
+ const e=practiceEvidence(list,c.id);
+ return h('details',{class:'learning-course'},h('summary',{},h('span',{class:'grow'},h('b',{},c.title),h('small',{},e.attempts?`${e.attempts} ${e.attempts===1?'attempt':'attempts'} · ${e.revisions} ${e.revisions===1?'revision':'revisions'}`:`${c.lessons.length} lessons`))),h('div',{class:'learning-course-body'},h('p',{class:'muted'},c.description),c.lessons.map(l=>learningRow(l.title,list.some(r=>r.lesson===l.id&&r.complete)?'Self-reviewed':'Lesson '+l.level,'lesson/'+l.id))));
+ }))),h('p',{class:'small muted'},'Progress records practice, not mastery. Examples are original teaching material.'));
+}
+function lessonView(l,requested) {
+ if(!l)return h('div',{},heading('Lesson not found'),link('Browse courses',''));
+ const steps=['learn','example','practise','review'],index=Math.max(0,steps.indexOf(requested || 'learn'));
+ const state=get('academy-lesson-'+l.id) || {id:'academy-lesson-'+l.id,type:'training',project:'',kind:'lesson-state',lesson:l.id};
+ const move=i=>{state.step=steps[i];state.visited=Date.now();put(state,true);go('training/lesson/'+l.id+'/'+steps[i]);};
+ const root=h('div',{class:'stack-lg narrow learning-lesson'},heading(l.title,l.courseTitle),
+ h('nav',{class:'learning-steps','aria-label':'Lesson steps'},steps.map((step,i)=>h('button',{type:'button',class:i===index?'current':'','aria-current':i===index?'step':null,onClick:()=>move(i)},h('span',{'aria-hidden':true},i+1),['Learn','Example','Practise','Review'][i]))),
+ h('p',{class:'small muted',role:'status'},`Step ${index+1} of 4`));
+ const existing=attempts().filter(r=>r.lesson===l.id && !r.transfer).sort((a,b)=>b.created-a.created)[0];
+ if(index===0)root.append(section('The technique',paras(l.teach)));
+ if(index===1)root.append(section('Worked example',paras(l.example)),section('What would you change?',paras(l.weak),h('details',{class:'fold'},h('summary',{},'Reveal the diagnosis'),paras(l.diagnosis))));
+ if(index===2)root.append(section('Your exercise',paras(l.exercise),h('div',{class:'learning-group'},learningRow(existing?'Resume your attempt':'Your practice notebook',existing?'Your draft is saved.':'Start below; drafts save as you type.',existing?'attempt/'+existing.id:'notebook'))));
+ if(index===3)root.append(section('Review your choices',h('ul',{},l.checks.map(q=>h('li',{},q))),existing?link('Review my attempt','attempt/'+existing.id,'btn primary'):h('p',{class:'muted'},'Write your attempt in Practise, then review it against these questions.')),section('Try a new situation',paras(l.transfer),btn('Start transfer exercise',()=>startAttempt(l,true),'ghost')),l.build?learningRow('Use this in your story','Keep the useful results in your workbook','builder'):null,
+ h('details',{class:'fold'},h('summary',{},'Earlier attempts'),attempts().filter(r=>r.lesson===l.id).map(r=>learningRow(r.transfer?'Transfer attempt':'Practice attempt',when(r.created),'attempt/'+r.id))));
+ root.append(h('div',{class:'learning-step-actions'},index>0?btn('Previous',()=>move(index-1),'ghost'):null,index===2?btn(existing?'Continue attempt':'Start practice',()=>existing?go('training/attempt/'+existing.id):startAttempt(l),'primary'):index<3?btn('Continue',()=>move(index+1),'primary'):link('All courses','', 'btn ghost')));
+ return root;
 }
 function startAttempt(l,transfer=false,lab) {
  const r=create('training',{kind:'attempt',course:l.course || 'labs',lesson:l.id,title:l.title,exercise:transfer?l.transfer:l.exercise,teach:l.teach || '',checks:l.checks || [],transfer,lab:lab || null,text:'',reflection:'',versions:[],review:{},complete:false});
@@ -72,15 +87,15 @@ function attemptView(r) {
  drawHistory();drawFeedback();
  const saveVersion=()=>{if(!ta.value.trim()) return toast('Write an attempt first.');r.versions ||= [];r.versions.push({id:uid(),at:Date.now(),text:ta.value,reflection:reflection.value});r.text=ta.value;put(r,true);drawHistory();toast('Version saved. Earlier versions are preserved.');};
  const root=h('div',{class:'stack-lg narrow'},heading(r.title,r.transfer?'Transfer practice: apply the skill to a new situation.':'Your practice notebook. Drafts keep a local recovery copy and save on the Pi.'),
- section('The task',paras(r.exercise),r.teach? h('details',{class:'fold',open:true},h('summary',{},'Lesson reference'),paras(r.teach)):null,r.lab? h('p',{class:'small muted'},`Technique lab selected from ${r.lab.author}. Practise broad craft decisions; do not reproduce their distinctive voice.`):null),
- section('Your attempt',ta,counter,h('div',{class:'row'},btn('Save a version',saveVersion,'primary'),btn('Use in story workbook',()=>useAttempt(r,ta.value)),btn('Coach this attempt',()=>coach(r,ta.value,null,feedback,drawFeedback)),btn('Review my revision',()=>{
+ section('The task',paras(r.exercise),r.teach? h('details',{class:'fold'},h('summary',{},'Lesson reference'),paras(r.teach)):null,r.lab? h('p',{class:'small muted'},`Technique lab selected from ${r.lab.author}. Practise broad craft decisions; do not reproduce their distinctive voice.`):null),
+ section('Your attempt',ta,counter,h('div',{class:'row'},btn('Save a version',saveVersion,'primary'),btn('Use in story workbook',()=>useAttempt(r,ta.value),'ghost'),btn('Coach this attempt',()=>coach(r,ta.value,null,feedback,drawFeedback),'ghost'),btn('Review my revision',()=>{
  const previous=(r.versions || []).filter(v=>v.text!==ta.value).at(-1);
  if(!previous) return toast('Save your first draft as a version, then revise it before requesting a comparison.');
  coach(r,ta.value,previous.text,feedback,drawFeedback);
  }))),
  section('Self-review',h('p',{class:'muted'},'Tick only when you can point to evidence in the draft. Completion does not certify skill.'),r.checks.map((q,i)=>h('label',{class:'check'},h('input',{type:'checkbox',checked:!!r.review?.[i],onChange:e=>{r.review ||= {};r.review[i]=e.target.checked;r.complete=false;put(r);}}),q)),field('Reflection',reflection),btn('Mark self-review complete',()=>{if(!r.text?.trim() || !r.checks.every((_,i)=>r.review?.[i]) || !r.reflection?.trim()) return toast('Write the attempt, review every criterion and add a reflection first.');saveVersion();r.complete=true;put(r,true);toast('Self-review recorded. Try a transfer exercise to test the skill.');})),
  section('Coach notes',feedback,h('p',{class:'muted small'},'AI notes are suggestions, not a judgement of talent. You decide which advice serves the story. No API request runs without cost approval.')),
- section('Saved versions',history),
+ h('details',{class:'fold'},h('summary',{},'Saved versions'),history),
  h('div',{class:'row'},r.lesson && LESSONS.some(l=>l.id===r.lesson)?link('Back to lesson','lesson/'+r.lesson):r.lab?link('More author labs','labs'):link('Browse courses',''),link('Practice plan','plan'),link('Story workbook','builder')));
  return root;
 }
@@ -91,7 +106,7 @@ function useAttempt(attempt,text) {
  modal('Use your attempt in the story workbook',h('div',{class:'stack'},h('p',{},'Append a copy to the selected workbook field. Existing work and the original practice attempt are preserved.'),field('Destination',target)),[['Cancel',()=>{}],['Add to workbook',()=>{
  let builder=currentWorkbook();
  if(!builder)builder=create('training',{kind:'builder',book:S.project?.id || '',fields:{},genre:GENRES[0].id,structure:'three'});
- builder.fields ||= {};builder.fields[target.value]=[builder.fields[target.value],text].filter(Boolean).join('\n\n');put(builder,true);toast('Attempt copied into the workbook.');
+ builder.fields ||= {};if(target.value==='beats'){builder.scenes=[...workbookScenes(builder),{id:uid(),act:0,title:attempt.title,goal:text,conflict:'',outcome:''}];}else{builder.fields[target.value]=[builder.fields[target.value],text].filter(Boolean).join('\n\n');}put(builder,true);toast('Attempt copied into the workbook.');
  },'primary']]);
 }
 function compareVersions(before,after) {
@@ -127,33 +142,71 @@ function planView() {
 function labsView() {
  const eligible=AUTHORS.filter(a=>a.plotcraft || a.pacing || a.dialogue || a.rhythm || a.themecraft),select=h('select',{class:'in', 'aria-label':'Lab author'},eligible.map(a=>h('option',{value:a.id},a.name))),body=h('div',{class:'stack-lg'});
  const techniques=[['plotcraft','Plot construction','Plan five causal beats and explain how each changes the next choice.'],['pacing','Pacing','Write a 400-word scene. Expand a consequential moment and compress an uneventful interval. Explain the allocation of space.'],['dialogue','Dialogue','Write a 300-word conversation with conflicting wants. Make the tactics distinct without borrowing recognisable phrasing.'],['rhythm','Sentence rhythm','Write 150 words, then revise the sentence and paragraph patterns to change emphasis. Explain the turn.'],['themecraft','Theme','Frame a thematic question and plan three choices that test different answers.']];
- const draw=()=>{const a=eligible.find(x=>x.id===select.value);body.replaceChildren(...techniques.filter(([key])=>a?.[key]).map(([key,title,exercise])=>section(title,paras(a[key]),h('ol',{},h('li',{},'Notice: identify one broad technique in this guide.'),h('li',{},'Explain: describe what effect it has and when you would use it.'),h('li',{},'Practise: apply it to an original situation.')),paras(exercise),btn('Start this lab',()=>startAttempt({id:'lab-'+a.id+'-'+key,course:'labs',title:`${a.name}: ${title}`,exercise:`First explain one broad technique from this guide in your own words. Then: ${exercise}`,teach:a[key],checks:['Can I explain the technique’s effect?','Does the attempt apply that technique?','Are the situation and wording my own?']},false,{author:a.name,technique:key}),'primary'))));};select.addEventListener('change',draw);draw();return h('div',{class:'stack-lg narrow'},heading('Author technique labs','Notice it, explain it, practise it. These labs study broad craft choices, not imitation of a distinctive author voice.'),field('Choose an author with a technique guide',select),body);
+ const draw=()=>{const a=eligible.find(x=>x.id===select.value);body.replaceChildren(...techniques.filter(([key])=>a?.[key]).map(([key,title,exercise])=>section(title,paras(a[key]),h('ol',{},h('li',{},'Notice: identify one broad technique in this guide.'),h('li',{},'Explain: describe what effect it has and when you would use it.'),h('li',{},'Practise: apply it to an original situation.')),paras(exercise),btn('Start this lab',()=>startAttempt({id:'lab-'+a.id+'-'+key,course:'labs',title:`${a.name}: ${title}`,exercise:`First explain one broad technique from this guide in your own words. Then: ${exercise}`,teach:a[key],checks:['Can I explain the technique’s effect?','Does the attempt apply that technique?','Are the situation and wording my own?']},false,{author:a.name,technique:key}),'ghost'))));};select.addEventListener('change',draw);draw();return h('div',{class:'stack-lg narrow'},heading('Author technique labs','Notice it, explain it, practise it. These labs study broad craft choices, not imitation of a distinctive author voice.'),field('Choose an author with a technique guide',select),body);
 }
 function libraryView() {
  let mode='genres';const body=h('div',{class:'stack-lg'});
- const draw=()=>{body.replaceChildren(...(mode==='genres'?GENRES.map(g=>section(g.title,h('p',{class:'prose'},g.question),paras(g.principles),h('p',{},`Useful turn: ${g.turn}`),h('p',{class:'muted'},`Watch for: ${g.pitfall}`),btn('Start '+g.title.toLowerCase()+' plot lab',()=>startAttempt({id:'genre-lab-'+g.id,course:'genre',title:g.title+' plot lab',teach:g.principles,exercise:`Answer: ${g.question} Write a premise and five beats: commitment, pursuit, complication, decisive response and consequence. Include this type of turn: ${g.turn} Explain how your ending honours the reader promise.`,checks:['Is the genre’s central question clear?','Does the turn change a character’s next action?','Does the ending address the promise?','Have I avoided this failure mode: '+g.pitfall]}),'primary'))):mode==='themes'?THEMES.map(t=>section(t.title,paras(t.question),h('p',{},t.exercise),btn('Practise this theme',()=>startAttempt({id:'theme-lab-'+t.title,course:'themes',title:t.title+' theme lab',teach:t.question,exercise:`Use this situation: ${t.exercise} Give three characters competing answers to the question “${t.question}” and plan a consequential choice testing each.`,checks:['Are competing answers plausible?','Do actions test the question?','Does the story allow consequences rather than a lecture?']})))):TROPES.map(t=>section(t.title,h('p',{},`Appeal: ${t.appeal}`),paras(t.practice),btn('Practise this trope',()=>startAttempt({id:'trope-lab-'+t.title,course:'tropes',title:t.title+' variation lab',teach:`Appeal: ${t.appeal}. ${t.practice}`,exercise:`Build an original premise using ${t.title.toLowerCase()}. Identify the expectation you retain, one variation and three setups needed to earn the payoff. Audit who gets agency.`,checks:['Is the familiar appeal retained or thoughtfully replaced?','Is the variation planted?','Have I checked agency and stereotypes?']}))))));};const navigation=h('div');const drawTabs=()=>navigation.replaceChildren(tabs([['genres','Genres'],['themes','Themes'],['tropes','Tropes']],mode,t=>{mode=t;draw();drawTabs();}));draw();drawTabs();return h('div',{class:'stack-lg narrow'},heading('Genre, theme & trope library','Starting points, not an exhaustive taxonomy or rules every story must follow.'),navigation,body);
+ const draw=()=>{body.replaceChildren(...(mode==='genres'?GENRES.map(g=>section(g.title,h('p',{class:'prose'},g.question),paras(g.principles),h('p',{},`Useful turn: ${g.turn}`),h('p',{class:'muted'},`Watch for: ${g.pitfall}`),btn('Start '+g.title.toLowerCase()+' plot lab',()=>startAttempt({id:'genre-lab-'+g.id,course:'genre',title:g.title+' plot lab',teach:g.principles,exercise:`Answer: ${g.question} Write a premise and five beats: commitment, pursuit, complication, decisive response and consequence. Include this type of turn: ${g.turn} Explain how your ending honours the reader promise.`,checks:['Is the genre’s central question clear?','Does the turn change a character’s next action?','Does the ending address the promise?','Have I avoided this failure mode: '+g.pitfall]}),'ghost'))):mode==='themes'?THEMES.map(t=>section(t.title,paras(t.question),h('p',{},t.exercise),btn('Practise this theme',()=>startAttempt({id:'theme-lab-'+t.title,course:'themes',title:t.title+' theme lab',teach:t.question,exercise:`Use this situation: ${t.exercise} Give three characters competing answers to the question “${t.question}” and plan a consequential choice testing each.`,checks:['Are competing answers plausible?','Do actions test the question?','Does the story allow consequences rather than a lecture?']})))):TROPES.map(t=>section(t.title,h('p',{},`Appeal: ${t.appeal}`),paras(t.practice),btn('Practise this trope',()=>startAttempt({id:'trope-lab-'+t.title,course:'tropes',title:t.title+' variation lab',teach:`Appeal: ${t.appeal}. ${t.practice}`,exercise:`Build an original premise using ${t.title.toLowerCase()}. Identify the expectation you retain, one variation and three setups needed to earn the payoff. Audit who gets agency.`,checks:['Is the familiar appeal retained or thoughtfully replaced?','Is the variation planted?','Have I checked agency and stereotypes?']}))))));};const navigation=h('div');const drawTabs=()=>navigation.replaceChildren(tabs([['genres','Genres'],['themes','Themes'],['tropes','Tropes']],mode,t=>{mode=t;draw();drawTabs();}));draw();drawTabs();return h('div',{class:'stack-lg narrow'},heading('Genre, theme & trope library','Starting points, not an exhaustive taxonomy or rules every story must follow.'),h('details',{class:'fold'},h('summary',{},'More library tools'),learningRow('Author technique labs','Study broad craft choices','labs'),h('a',{class:'learning-row',href:'#/plots'},'Plot structures ›'),h('a',{class:'learning-row',href:'#/craft'},'Craft reference ›')),navigation,body);
 }
-function builderView() {
+function builderView(requested) {
  let builder=currentWorkbook();
- const root=h('div',{class:'stack-lg narrow'},heading('Build my story while I learn',S.project?`Workbook for ${S.project.title}. Entries become your premise, conflict map, dossier and scene outline.`:'You can practise without a book. Start a book on the Desk when you are ready to export.'));
- if(!builder){const id=uid();builder={id,type:'training',project:'',created:Date.now(),kind:'builder',book:S.project?.id || '',fields:{},genre:GENRES[0].id,structure:'three'};}
+ if(!builder)builder={id:uid(),type:'training',project:'',created:Date.now(),kind:'builder',book:S.project?.id || '',fields:{},genre:GENRES[0].id,structure:'three'};
+ builder.fields ||= {};
+ const stages=[['premise','Premise'],['characters','Characters'],['conflict','Conflict'],['structure','Structure'],['scenes','Scenes'],['review','Review']];
+ const selected=stages.some(([key])=>key===requested)?requested:builder.step || 'premise';
+ const index=Math.max(0,stages.findIndex(([key])=>key===selected));
  const save=()=>put(builder);
- const genre=h('select',{class:'in','aria-label':'Story genre',onChange:e=>{builder.genre=e.target.value;save();}},GENRES.map(g=>h('option',{value:g.id,selected:g.id===builder.genre},g.title)));
- const structure=h('select',{class:'in','aria-label':'Story structure',onChange:e=>{builder.structure=e.target.value;save();drawStructure();}},STRUCTURES.map(s=>h('option',{value:s.id,selected:s.id===builder.structure},s.title)));
- const structureHelp=h('div',{class:'stack'});const drawStructure=()=>{const s=STRUCTURES.find(x=>x.id===builder.structure);structureHelp.replaceChildren(h('ol',{},s.parts.map(p=>h('li',{},p))),btn('Add structure prompts to act outline',async()=>{if(builder.fields.acts && !await confirmDlg('Replace act outline?','This replaces only the workbook act-outline field. Your exported scene cards are untouched.','Replace','primary'))return;builder.fields.acts=s.parts.map(p=>p+': ').join('\n');save();actInput.value=builder.fields.acts;}));};
- let actInput;const fields=BUILD_FIELDS.map(([key,label,hint])=>{const input=h('textarea',{class:'in',rows:key==='beats'?8:4,value:builder.fields[key] || '', 'aria-label':label,onInput:e=>{builder.fields[key]=e.target.value;save();}});if(key==='acts')actInput=input;return field(label,input,hint);});drawStructure();
- root.append(field('Genre',genre),field('Structure',structure),structureHelp,...fields,btn('Export workbook to this book',async()=>{
- if(!S.project)return toast('Start or open a book on the Desk first.');
- const planned=storyExport(builder,S.project.id,[...S.recs.values()]);
- if(planned.alreadyExported || builder.exported)return toast('This workbook was already exported. Edit its scene cards and bible dossier directly; export does not overwrite them.');
- if(!planned.scenes.length)return toast('Add at least one line to the scene plan first.');
- if(!await confirmDlg('Add this story plan?',`Add ${planned.scenes.length} outlined scenes and ${planned.character?'one character dossier':'no character dossier'} to ${S.project.title}? Existing drafts stay intact. The workbook is retained.`,'Add plan','primary'))return;
- try {
- await saveForAction(builder);
- const result=await req('POST','api/academy-export',{builderId:builder.id,projectId:S.project.id});
- for(const record of result.records) S.recs.set(record.id,record);
- S.project=S.recs.get(S.project.id);builder=S.recs.get(builder.id);
- toast('Plan added. Scene cards and the character dossier are ready to develop.');
- } catch(e) {toast(e.message);}
- },'primary'),h('p',{class:'muted small'},'Export adds outlined scene cards with empty drafts and keeps the character dossier in the story bible. Use [act number] in a scene-plan line to place its card. Existing book act labels are retained; a blank storyboard adopts the selected structure. It never writes the story for you. Repeated export is blocked to prevent duplicates.'),h('div',{class:'row'},h('a',{href:'#/story',class:'btn'},'Open storyboard'),h('a',{href:'#/bible',class:'btn'},'Open story bible')));return root;
+ const move=i=>{builder.step=stages[i][0];save();go('training/builder/'+stages[i][0]);};
+ const root=h('div',{class:'stack-lg narrow learning-workbook'},heading('Story workbook',S.project?`For ${S.project.title || 'Untitled book'}. Build it one decision at a time.`:'Start with an idea. You can connect a book when you are ready.'),
+ h('nav',{class:'learning-steps workbook-steps','aria-label':'Workbook steps'},stages.map(([key,title],i)=>h('button',{type:'button',class:i===index?'current':'','aria-current':i===index?'step':null,onClick:()=>move(i)},h('span',{'aria-hidden':true},i+1),title))),h('p',{class:'small muted',role:'status'},`Step ${index+1} of ${stages.length} · changes save as you type`));
+ const structure=()=>STRUCTURES.find(s=>s.id===builder.structure) || STRUCTURES[0];
+ const inputField=key=>{
+  const [,label,hint]=BUILD_FIELDS.find(f=>f[0]===key);
+  return field(label,h('textarea',{class:'in',rows:key==='characterName'?1:4,value:builder.fields[key] || '', 'aria-label':label,onInput:e=>{builder.fields[key]=e.target.value;save();}}),hint);
+ };
+ if(index===0)root.append(section('What story are you exploring?',h('p',{class:'muted'},'Choose the reader experience and the question that will carry the story.'),field('Genre',h('select',{class:'in','aria-label':'Story genre',onChange:e=>{builder.genre=e.target.value;save();}},GENRES.map(g=>h('option',{value:g.id,selected:g.id===builder.genre},g.title)))),inputField('premise')),learningRow('Need a starting point?','Practise a genre premise','lesson/genre-1'));
+ if(index===1)root.append(section('Who drives the story?',inputField('characterName'),inputField('character')),learningRow('Develop a rounded character','Desire, values and contradiction','lesson/characters-1'));
+ if(index===2)root.append(section('What makes the choices difficult?',inputField('conflict')),h('details',{class:'fold',open:!!builder.fields.theme},h('summary',{},'Theme and motif'),inputField('theme')),h('details',{class:'fold',open:!!builder.fields.tropes},h('summary',{},'Tropes and variation'),inputField('tropes')),learningRow('Build meaningful opposition','Opposing wants','lesson/conflict-1'));
+ if(index===3){
+  const help=h('div',{class:'stack'});
+  const draw=()=>help.replaceChildren(h('ol',{},structure().parts.map(p=>h('li',{},p))),h('p',{class:'muted small'},'A structure is a guide, not a required formula. Existing scene assignments stay intact; review them if you change the number of acts.'));
+  root.append(section('Choose the shape',field('Structure',h('select',{class:'in','aria-label':'Story structure',onChange:e=>{builder.structure=e.target.value;save();draw();}},STRUCTURES.map(s=>h('option',{value:s.id,selected:s.id===structure().id},s.title)))),help,
+  btn('Use these act prompts',async()=>{if(builder.fields.acts && !await confirmDlg('Replace act notes?','Only these workbook notes change. Your scene cards stay intact.','Replace','primary'))return;builder.fields.acts=structure().parts.map(p=>p+': ').join('\n');save();actNotes.value=builder.fields.acts;},'ghost')));
+  const actNotes=h('textarea',{class:'in',rows:6,value:builder.fields.acts || '', 'aria-label':'Act outline',onInput:e=>{builder.fields.acts=e.target.value;save();}});
+  root.append(field('Act outline',actNotes,'Describe the choices that carry the story across each turn.'),h('details',{class:'fold',open:!!builder.fields.subplot},h('summary',{},'Subplot'),inputField('subplot')));draw();
+ }
+ if(index===4){
+  const cards=h('div',{class:'stack-lg'});
+  const draw=()=>{
+   const scenes=workbookScenes(builder);
+   cards.replaceChildren(...scenes.map((scene,i)=>{
+    const edit=(key,value)=>{builder.scenes=workbookScenes(builder).map((s,n)=>n===i?{...s,[key]:value}:s);save();};
+    const reorder=delta=>{const items=[...workbookScenes(builder)];[items[i],items[i+delta]]=[items[i+delta],items[i]];builder.scenes=items;save();draw();};
+    const row=h('section',{class:'learning-scene stack','aria-label':`Scene ${i+1}`},h('h2',{},`Scene ${i+1}`));
+    const choices=structure().parts.map((title,n)=>h('option',{value:n,selected:Number(scene.act)===n},title));
+    if(Number(scene.act)>=choices.length)choices.unshift(h('option',{value:scene.act,selected:true},'Previous act '+(Number(scene.act)+1)+' — choose an act'));
+    row.append(field('Title',h('input',{class:'in',value:scene.title,'aria-label':`Scene ${i+1} title`,onInput:e=>edit('title',e.target.value)})),field('Act',h('select',{class:'in','aria-label':`Scene ${i+1} act`,onChange:e=>edit('act',Number(e.target.value))},choices)),
+    ...[['goal','Goal','What does the character want here?'],['conflict','Resistance','What prevents the easy outcome?'],['outcome','Turn and consequence','What changes, and what must happen next?']].map(([key,title,hint])=>field(title,h('textarea',{class:'in',rows:2,value:scene[key] || '', 'aria-label':`Scene ${i+1} ${title.toLowerCase()}`,onInput:e=>edit(key,e.target.value)}),hint)),
+    h('div',{class:'row'},btn('Move up',()=>reorder(-1),'ghost sm'),btn('Move down',()=>reorder(1),'ghost sm'),btn('Remove',()=>{const items=[...workbookScenes(builder)],removed=items.splice(i,1)[0];builder.scenes=items;save();draw();toast('Scene removed from the workbook.',['Undo',()=>{const restored=[...workbookScenes(builder)];restored.splice(i,0,removed);builder.scenes=restored;save();draw();}]);},'ghost sm')));
+    const buttons=row.querySelectorAll('button');buttons[0].disabled=i===0;buttons[1].disabled=i===scenes.length-1;
+    if(scene.legacy)row.append(h('details',{class:'fold'},h('summary',{},'Original scene-plan line'),paras(scene.legacy)));
+    return row;
+   }));
+   if(!scenes.length)cards.append(h('div',{class:'learning-empty'},h('h2',{},'Plan your first scene'),h('p',{class:'muted'},'Give it a goal, resistance and a turn. Add details as you learn.')));
+  };
+  root.append(section('Turn the outline into scenes',h('p',{class:'muted'},'Each scene has its own fields. Use the act picker to place it in your story.'),cards,btn('Add scene',()=>{builder.scenes=[...workbookScenes(builder),{id:uid(),act:0,title:'',goal:'',conflict:'',outcome:''}];save();draw();},'ghost')));draw();
+  if(builder.fields.beats)root.append(h('details',{class:'fold'},h('summary',{},'Original scene-plan notes'),paras(builder.fields.beats)));
+ }
+ if(index===5)root.append(section('Make the ending earn its place',inputField('ending')),section('Your plan',h('dl',{class:'learning-summary'},h('dt',{},'Genre'),h('dd',{},GENRES.find(g=>g.id===builder.genre)?.title || 'Not selected'),h('dt',{},'Structure'),h('dd',{},structure().title),h('dt',{},'Scenes'),h('dd',{},workbookScenes(builder).length),h('dt',{},'Character'),h('dd',{},builder.fields.characterName || 'Not named'))),
+ builder.exported?h('div',{class:'learning-group'},h('p',{},'Plan already added. Edit the exported cards in your storyboard.'),h('a',{href:'#/story',class:'learning-row'},'Open storyboard ›')):btn('Add plan to book',async()=>{
+  if(!S.project)return toast('Open a book in Books, then return to this workbook.');
+  const planned=storyExport(builder,S.project.id,[...S.recs.values()]);
+  if(planned.alreadyExported || builder.exported)return toast('This plan is already in the book. Your existing cards stay intact.');
+  if(!planned.scenes.length)return toast('Add a scene in the Scenes step first.');
+  if(workbookScenes(builder).some(s=>Number(s.act)>=structure().parts.length))return toast('Choose a valid act for each scene in the Scenes step.');
+  if(!await confirmDlg('Add this plan?',`Add ${planned.scenes.length} outlined scenes${planned.character?' and a character dossier':''} to ${S.project.title || 'Untitled book'}? Existing drafts stay intact.`,'Add plan','primary'))return;
+  try{await saveForAction(builder);const result=await req('POST','api/academy-export',{builderId:builder.id,projectId:S.project.id});for(const record of result.records)S.recs.set(record.id,record);S.project=S.recs.get(S.project.id);builder=S.recs.get(builder.id);toast('Plan added to the book.');go('story');}catch(e){toast(e.message);}
+ },'primary'),h('p',{class:'small muted'},'Adds outlined cards with empty drafts and your character dossier. Existing cards remain unchanged. A blank storyboard adopts your structure; an existing board keeps its act labels.'),h('div',{class:'row'},h('a',{href:'#/story',class:'btn ghost'},'Storyboard'),h('a',{href:'#/bible',class:'btn ghost'},'Story bible')));
+ root.append(h('div',{class:'learning-step-actions'},index>0?btn('Previous',()=>move(index-1),'ghost'):null,index<stages.length-1?btn('Continue',()=>move(index+1),'primary'):null));
+ return root;
 }
